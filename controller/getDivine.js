@@ -124,15 +124,61 @@ class GetDivineController {
     });
   }
   async getSpiritualities(req, res) {
-    let [data] = await pool.execute(`SELECT * FROM Spiritualities;`);
-    res.json(data);
+    const payload = req.query;
+    let filters = [];
+
+    const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+    const limit = payload?.pageSize || 10;
+    const sort = payload?.sort || "DESC";
+    const sortBy = payload?.sortBy || "sp.PublishedOn";
+
+    if (payload?.search) {
+      filters.push(`sp.Title LIKE "%${payload.search}%"`);
+    }
+
+    if (payload.category) {
+      filters.push(`ct.slug = "${payload.category}"`);
+    }
+
+    if (payload.slug) {
+      filters.push(`sp.slug = "${payload.slug}"`);
+    }
+
+    let [data] = await pool.execute(
+      `SELECT sp.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug
+        FROM Spiritualities as sp
+        JOIN SpiritualityMappingCategory as spct ON sp.id = spct.SpiritualityId
+        JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.id
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};`
+    );
+    let [count] = await pool.execute(
+      `SELECT COUNT(*) as total FROM Spiritualities as sp
+        JOIN SpiritualityMappingCategory as spct ON sp.id = spct.SpiritualityId
+        JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.id
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+    );
+
+    const total = count[0].total;
+    res.json({
+      success: 1,
+      data,
+      total,
+    });
   }
   async getSpiritualityTags(req, res) {
     let [data] = await pool.execute(`SELECT * FROM SpiritualityTags;`);
     res.json(data);
   }
   async getSpiritualityCategories(req, res) {
-    let [data] = await pool.execute(`SELECT * FROM SpiritualityCategories;`);
+    let [data] = await pool.execute(
+      `SELECT ct.* FROM SpiritualityCategories as ct
+          JOIN SpiritualityMappingCategory as spct ON ct.id = spct.SpiritualityCategoryId
+          JOIN Spiritualities as sp ON spct.SpiritualityId = sp.id
+          GROUP BY ct.id
+          ORDER BY ct.Name ASC;`
+    );
     res.json(data);
   }
   async getTestimonials(req, res) {
