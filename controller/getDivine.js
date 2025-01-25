@@ -43,7 +43,7 @@ class GetDivineController {
         JOIN BlogCategories as ct ON bgct.BlogCategoryId = ct.id
         ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
         ORDER BY ${sortBy} ${sort} 
-        LIMIT ${limit} OFFSET ${offset} ;`
+        LIMIT ${limit} OFFSET ${offset};`
     );
     let [count] = await pool.execute(
       `SELECT COUNT(*) as total FROM Blogs as bg
@@ -64,12 +64,64 @@ class GetDivineController {
     res.json(data);
   }
   async getCourseCategories(req, res) {
-    let [data] = await pool.execute(`SELECT * FROM CourseCategories;`);
+    let [data] = await pool.execute(
+      `SELECT ct.* FROM ProductCategories as ct
+          JOIN ProductMappingCategory as prct ON ct.id = prct.ProductCategoryId
+          JOIN Products as pr ON prct.ProductId = pr.id
+          GROUP BY ct.id
+          ORDER BY ct.Name ASC;`
+    );
     res.json(data);
   }
   async getCourseTags(req, res) {
-    let [data] = await pool.execute(`SELECT * FROM CourseTags;`);
+    let [data] = await pool.execute(`SELECT * FROM ProductTags;`);
     res.json(data);
+  }
+  async getCourses(req, res) {
+    const payload = req.query;
+    let filters = [];
+
+    const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+    const limit = payload?.pageSize || 10;
+    const sort = payload?.sort || "DESC";
+    const sortBy = payload?.sortBy || "pr.PublishedOn";
+
+    if (payload?.search) {
+      filters.push(`pr.Name LIKE "%${payload.search}%"`);
+    }
+
+    if (payload.category) {
+      filters.push(`ct.slug = "${payload.category}"`);
+    }
+
+    if (payload.slug) {
+      filters.push(`pr.slug = "${payload.slug}"`);
+    }
+
+    let [data] = await pool.execute(
+      `SELECT pr.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug, 
+        JSON_ARRAY(prim.ImageUrl) AS Images
+        FROM Products as pr
+        JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
+        JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
+        LEFT JOIN ProductMappingImage as prim ON pr.id = prim.ProductId
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};`
+    );
+    let [count] = await pool.execute(
+      `SELECT COUNT(*) as total FROM Products as pr
+        JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
+        JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+    );
+
+    const total = count[0].total;
+    res.json({
+      success: 1,
+      data,
+      total,
+    });
   }
   async getSpiritualities(req, res) {
     let [data] = await pool.execute(`SELECT * FROM Spiritualities;`);
@@ -97,10 +149,6 @@ class GetDivineController {
   }
   async getWebStoryTags(req, res) {
     let [data] = await pool.execute(`SELECT * FROM WebStoryTags;`);
-    res.json(data);
-  }
-  async getCourses(req, res) {
-    let [data] = await pool.execute(`SELECT * FROM Products;`);
     res.json(data);
   }
 }
