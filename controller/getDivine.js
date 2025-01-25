@@ -29,7 +29,11 @@ class GetDivineController {
     }
 
     if (payload.category) {
-      filters.push(`ct.id = "${payload.category}"`);
+      filters.push(`ct.slug = "${payload.category}"`);
+    }
+
+    if (payload.slug) {
+      filters.push(`bg.slug = "${payload.slug}"`);
     }
 
     let [data] = await pool.execute(
