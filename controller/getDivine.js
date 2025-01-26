@@ -99,18 +99,23 @@ class GetDivineController {
     }
 
     let [data] = await pool.execute(
-      `SELECT pr.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug, 
+      `SELECT pr.* ,
+        JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug)) AS Categories,
+        JSON_ARRAYAGG(JSON_OBJECT('id', tag.id, 'name', tag.Name)) AS Tags,
         JSON_ARRAY(prim.ImageUrl) AS Images
         FROM Products as pr
         JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
         JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
+        LEFT JOIN ProductMappingTag as prtag ON pr.id = prtag.ProductId
+        LEFT JOIN ProductTags as tag ON prtag.ProductTagId = tag.id
         LEFT JOIN ProductMappingImage as prim ON pr.id = prim.ProductId
         ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        GROUP BY pr.id, prim.ImageUrl
         ORDER BY ${sortBy} ${sort} 
         LIMIT ${limit} OFFSET ${offset};`
     );
     let [count] = await pool.execute(
-      `SELECT COUNT(*) as total FROM Products as pr
+      `SELECT COUNT(DISTINCT(pr.id)) as total FROM Products as pr
         JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
         JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
         ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
