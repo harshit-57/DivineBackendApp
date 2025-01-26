@@ -202,6 +202,25 @@ class GetDivineController {
     let [data] = await pool.execute(`SELECT * FROM WebStoryTags;`);
     res.json(data);
   }
+
+  async createLead(req, res) {
+    const payload = req.body;
+    const { name, email, phone, service, message } = payload;
+    if (!name || !email || !phone || !message) {
+      return res.json({
+        success: 0,
+        message: "Missing required fields",
+      });
+    }
+    let [data] = await pool.execute(
+      `INSERT INTO Leads (Name, Email, Phone, Service, Message) VALUES (?, ?, ?, ?, ?);`,
+      [name, email, phone, service || null, message]
+    );
+    res.json({
+      success: 1,
+      data,
+    });
+  }
 }
 
 export default new GetDivineController();

@@ -39,5 +39,6 @@ export default class GetDivineRoutes {
       GetDivineController.getWebStoryCategories
     );
     this.router.get("/getWebStoryTags", GetDivineController.getWebStoryTags);
+    this.router.post("/createLead", GetDivineController.createLead);
   };
 }
