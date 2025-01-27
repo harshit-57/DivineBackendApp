@@ -90,8 +90,14 @@ class GetDivineController {
       filters.push(`pr.Name LIKE "%${payload.search}%"`);
     }
 
-    if (payload.category) {
-      filters.push(`ct.slug = "${payload.category}"`);
+    if (payload.category?.split(",").length > 0) {
+      filters.push(
+        `ct.slug IN (${payload.category
+          ?.split(",")
+          ?.map((item) => `"${item}"`)
+          ?.join(",")})`
+      );
+      //   filters.push(`ct.slug = "${payload.category}"`);
     }
 
     if (payload.slug) {
