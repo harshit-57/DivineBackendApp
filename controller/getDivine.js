@@ -222,11 +222,14 @@ class GetDivineController {
     }
 
     let [data] = await pool.execute(
-      `SELECT ws.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug
+      `SELECT ws.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug,
+        JSON_ARRAYAGG(JSON_OBJECT('id', wsim.id, 'ImageUrl', wsim.WebStoryImageUrl, 'ImageText', wsim.WebStoryImageText, 'ImageOrder', wsim.WebStoryImageOrder )) AS Images
         FROM WebStories as ws
         JOIN WebStoryMappingCategory as wsct ON ws.id = wsct.WebStoryId
         JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.id
+        LEFT JOIN WebStoryImage as wsim ON ws.id = wsim.WebStoryId
         ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        GROUP BY ws.id, ct.id
         ORDER BY ${sortBy} ${sort} 
         LIMIT ${limit} OFFSET ${offset};`
     );
