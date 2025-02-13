@@ -80,8 +80,35 @@ class GetDivineController {
   }
   async getCitations(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM Citations;`);
-      res.json(data);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "ci.id";
+
+      if (payload?.search) {
+        filters.push(`ci.Title LIKE "%${payload.search}%"`);
+      }
+      let [data] = await pool.execute(
+        `SELECT ci.* 
+          FROM Citations as ci
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM Citations as ci
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        data,
+        total,
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ status: false, message: error?.message });
@@ -249,15 +276,6 @@ class GetDivineController {
       res.status(500).json({ status: false, message: error?.message });
     }
   }
-  async getTestimonials(req, res) {
-    try {
-      let [data] = await pool.execute(`SELECT * FROM Testimonials;`);
-      res.json(data);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ status: false, message: error?.message });
-    }
-  }
   async getWebStories(req, res) {
     try {
       const payload = req.query;
@@ -335,6 +353,44 @@ class GetDivineController {
       res.status(500).json({ status: false, message: error?.message });
     }
   }
+  async getTestimonials(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "test.id";
+
+      if (payload?.search) {
+        filters.push(`test.UserName LIKE "${payload.search}%"`);
+      }
+      let [data] = await pool.execute(
+        `SELECT test.* 
+          FROM Testimonials as test
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM Testimonials as test
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        data,
+        total,
+      });
+      // let [data] = await pool.execute(`SELECT * FROM Testimonials;`);
+      // res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
   async createLead(req, res) {
     try {
       const payload = req.body;
@@ -353,6 +409,44 @@ class GetDivineController {
         success: 1,
         data,
       });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+  async getLeads(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "ld.id";
+
+      if (payload?.search) {
+        filters.push(`ld.Name LIKE "${payload.search}%"`);
+      }
+      let [data] = await pool.execute(
+        `SELECT ld.* 
+          FROM Leads as ld
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM Leads as ld
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        data,
+        total,
+      });
+      // let [data] = await pool.execute(`SELECT * FROM Testimonials;`);
+      // res.json(data);
     } catch (error) {
       console.error(error);
       res.status(500).json({ status: false, message: error?.message });
