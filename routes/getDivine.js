@@ -32,13 +32,14 @@ export default class GetDivineRoutes {
       "/getSpiritualityCategories",
       GetDivineController.getSpiritualityCategories
     );
-    this.router.get("/getTestimonials", GetDivineController.getTestimonials);
     this.router.get("/getWebStories", GetDivineController.getWebStories);
     this.router.get(
       "/getWebStoryCategories",
       GetDivineController.getWebStoryCategories
     );
     this.router.get("/getWebStoryTags", GetDivineController.getWebStoryTags);
+    this.router.get("/getTestimonials", GetDivineController.getTestimonials);
     this.router.post("/createLead", GetDivineController.createLead);
+    this.router.get("/getLeads", GetDivineController.getLeads);
   };
 }
