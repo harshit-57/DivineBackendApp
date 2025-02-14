@@ -140,7 +140,7 @@ class AdminController {
               );
             else {
               const [newTag] = await pool.execute(
-                `INSERT INTO ProductTags (Name) VALUES (?, ?)`,
+                `INSERT INTO ProductTags (Name, Slug) VALUES (?, ?)`,
                 [tag?.name, await generatedSlug(tag?.name, "ProductTags")]
               );
               await pool.execute(
@@ -275,9 +275,14 @@ class AdminController {
 
       if (payload?.tags?.length) {
         await pool.execute(
-          `DELETE FROM ProductMappingTag WHERE ProductId = ? AND ProductTagId NOT IN (${payload?.tags
-            ?.map((tag) => tag?.id)
-            ?.join(", ")})`,
+          `DELETE FROM ProductMappingTag WHERE ProductId = ? ${
+            payload?.tags?.filter((tag) => tag?.id)?.length
+              ? `AND ProductTagId NOT IN (${payload?.tags
+                  ?.filter((tag) => tag?.id)
+                  ?.map((tag) => tag?.id)
+                  ?.join(", ")})`
+              : ""
+          } `,
           [payload?.id]
         );
         await Promise.all(
@@ -294,7 +299,7 @@ class AdminController {
                 );
               else {
                 const [newTag] = await pool.execute(
-                  `INSERT INTO ProductTags (Name) VALUES (?, ?)`,
+                  `INSERT INTO ProductTags (Name, Slug) VALUES (?, ?)`,
                   [tag?.name, await generatedSlug(tag?.name, "ProductTags")]
                 );
                 await pool.execute(
