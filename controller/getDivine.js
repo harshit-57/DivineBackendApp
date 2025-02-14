@@ -167,24 +167,29 @@ class GetDivineController {
 
       let [data] = await pool.execute(
         `SELECT pr.* ,
-          JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug)) AS Categories,
-          JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name)) AS Tags,
-          JSON_ARRAY(prim.ImageUrl) AS Images
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+            FROM ProductMappingCategory prct 
+            JOIN ProductCategories ct ON prct.ProductCategoryId = ct.id 
+            WHERE prct.ProductId = pr.id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            FROM ProductMappingTag prtag 
+            JOIN ProductTags tag ON prtag.ProductTagId = tag.id 
+            WHERE prtag.ProductId = pr.id)  AS Tags,
+          (SELECT JSON_ARRAYAGG(prim.ImageUrl) 
+            FROM ProductMappingImage prim 
+            WHERE prim.ProductId = pr.id) AS Images
           FROM Products as pr
           JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
           JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
-          LEFT JOIN ProductMappingTag as prtag ON pr.id = prtag.ProductId
-          LEFT JOIN ProductTags as tag ON prtag.ProductTagId = tag.id
-          LEFT JOIN ProductMappingImage as prim ON pr.id = prim.ProductId
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY pr.id, prim.ImageUrl
+          GROUP BY pr.Id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
         `SELECT COUNT(DISTINCT(pr.id)) as total FROM Products as pr
-          JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
-          JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
+        JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
+        JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
