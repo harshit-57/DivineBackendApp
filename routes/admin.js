@@ -15,6 +15,12 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.createCourse
     );
+
+    this.router.post(
+      "/update-course",
+      AdminMiddleware,
+      AdminController.updateCourse
+    );
   };
 }
 

@@ -47,15 +47,11 @@ class AdminController {
         !payload.productUrl ||
         !payload.regularPrice
       ) {
-        return res.json({
+        return res.status(400).json({
           success: 0,
           message: "Missing required fields",
         });
       }
-      console.log(
-        generatedSlug,
-        await generatedSlug(payload.title, "Products")
-      );
 
       payload.slug = await generatedSlug(payload.title, "Products");
 
@@ -74,10 +70,11 @@ class AdminController {
         Meta_Title, 
         Meta_SiteName, 
         Meta_Desc,
+        IsTop,
         PublishedOn, 
         Status
         ) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           payload.title,
@@ -93,6 +90,7 @@ class AdminController {
           payload.metaSiteName ||
             "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
           payload.metaDescription || "",
+          payload.isTOP || 0,
           new Date(payload.publishedOn) > new Date()
             ? new Data(payload.publishedOn)
             : new Date(),
@@ -101,7 +99,7 @@ class AdminController {
       );
 
       if (!course)
-        return res.json({
+        return res.status(500).json({
           success: 0,
           message: "Unable to create course",
         });
@@ -160,6 +158,161 @@ class AdminController {
         data: {
           slug: payload.slug,
           id: courseId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateCourse(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [product] = await pool.execute(
+        `SELECT * FROM Products WHERE Id = ?`,
+        [payload.id]
+      );
+
+      product = product[0];
+
+      if (payload?.slug && product?.Slug != payload?.slug) {
+        const [existSlug] = await pool.execute(
+          `SELECT Id FROM Products WHERE Slug = ?`,
+          [payload.slug]
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.Name = payload.title;
+      if (payload.slug) updateDetails.Slug = payload.slug;
+      if (payload.description)
+        updateDetails.ProductDescription = payload.description;
+      if (payload.shortDescription)
+        updateDetails.ShortDescription = payload.shortDescription;
+      if (payload.productUrl) updateDetails.ProductUrl = payload.productUrl;
+      if (payload.buyText) updateDetails.Buy_Text = payload.buyText;
+      if (payload.regularPrice)
+        updateDetails.Regular_Price = payload.regularPrice;
+      if (payload.salePrice) updateDetails.Sale_Price = payload.salePrice;
+      if (payload.focusKeyphrase)
+        updateDetails.Focus_keyphrase = payload.focusKeyphrase;
+      if (payload.metaTitle) updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName)
+        updateDetails.Meta_SiteName = payload.metaSiteName;
+      if (payload.metaDescription)
+        updateDetails.Meta_Desc = payload.metaDescription;
+      if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
+      if (new Date(payload.publishedOn) > new Date())
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+
+      const course = await pool.execute(
+        `UPDATE Products SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!course)
+        return res.json({
+          success: 0,
+          message: "Unable to update course",
+        });
+
+      // if (payload?.image)
+      //   await pool.execute(
+      //     `INSERT INTO ProductMappingImage (ProductId, ImageUrl) VALUES (?, ?)`,
+      //     [
+      //       courseId,
+      //       "https://i0.wp.com/acharyaganesh.com/wp-content/uploads/2025/01/Advanced-Astrology-Course-Planets-In-Houses-Course.webp?fit=800%2C1130&ssl=1",
+      //     ]
+      //   );
+
+      if (payload?.categories?.length) {
+        await pool.execute(
+          `DELETE FROM ProductMappingCategory WHERE ProductId = ? AND ProductCategoryId NOT IN (${payload?.categories
+            ?.map((category) => category?.id)
+            ?.join(", ")})`,
+          [payload?.id]
+        );
+
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id) {
+              const [existCategory] = await pool.execute(
+                `SELECT Id FROM ProductMappingCategory WHERE ProductId = ? AND ProductCategoryId = ?`,
+                [payload?.id, category?.id]
+              );
+              if (!existCategory?.length)
+                await pool.execute(
+                  `INSERT INTO ProductMappingCategory (ProductId, ProductCategoryId) VALUES (?, ?)`,
+                  [payload?.id, category?.id]
+                );
+            }
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await pool.execute(
+          `DELETE FROM ProductMappingTag WHERE ProductId = ? AND ProductTagId NOT IN (${payload?.tags
+            ?.map((tag) => tag?.id)
+            ?.join(", ")})`,
+          [payload?.id]
+        );
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            if (!tag?.id) {
+              const [oldTag] = await pool.execute(
+                `SELECT Id FROM ProductTags WHERE Name = ?`,
+                [tag?.name]
+              );
+              if (oldTag[0]?.Id)
+                await pool.execute(
+                  `INSERT INTO ProductMappingTag (ProductId, ProductTagId) VALUES (?, ?)`,
+                  [payload?.id, oldTag[0]?.Id]
+                );
+              else {
+                const [newTag] = await pool.execute(
+                  `INSERT INTO ProductTags (Name) VALUES (?, ?)`,
+                  [tag?.name, await generatedSlug(tag?.name, "ProductTags")]
+                );
+                await pool.execute(
+                  `INSERT INTO ProductMappingTag (ProductId, ProductTagId) VALUES (?, ?)`,
+                  [payload?.id, newTag.insertId]
+                );
+              }
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Course updated successfully",
+        data: {
+          slug: payload.slug,
+          id: payload?.id,
         },
       });
     } catch (error) {

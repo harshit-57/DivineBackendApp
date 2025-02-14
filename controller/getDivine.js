@@ -141,12 +141,21 @@ class GetDivineController {
   async getCourses(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
+      let filters = ["pr.DeletedOn IS NULL"];
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "pr.PublishedOn";
+
+      if (payload?.status) {
+        filters.push(
+          `pr.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
 
       if (payload?.search) {
         filters.push(`pr.Name LIKE "%${payload.search}%"`);
