@@ -18,7 +18,23 @@ class GetDivineController {
   }
   async getBlogTags(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM BlogTags;`);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "BlogTags.id";
+
+      if (payload?.search) {
+        filters.push(`BlogTags.Name LIKE "%${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(`
+        SELECT * FROM BlogTags
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};`);
       res.json(data);
     } catch (error) {
       console.error(error);
@@ -91,6 +107,10 @@ class GetDivineController {
       if (payload?.search) {
         filters.push(`ci.Title LIKE "%${payload.search}%"`);
       }
+      if (payload.slug) {
+        filters.push(`ci.Slug = "${payload.slug}"`);
+      }
+
       let [data] = await pool.execute(
         `SELECT ci.* 
           FROM Citations as ci
@@ -131,7 +151,24 @@ class GetDivineController {
   }
   async getCourseTags(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM ProductTags;`);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "ProductTags.id";
+
+      if (payload?.search) {
+        filters.push(`ProductTags.Name LIKE "%${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(`
+        SELECT * FROM ProductTags
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};
+        `);
       res.json(data);
     } catch (error) {
       console.error(error);
@@ -268,7 +305,25 @@ class GetDivineController {
   }
   async getSpiritualityTags(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM SpiritualityTags;`);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "SpiritualityTags.id";
+
+      if (payload?.search) {
+        filters.push(`SpiritualityTags.Name LIKE "%${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(`
+        SELECT * FROM SpiritualityTags
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};
+        `);
+      // let [data] = await pool.execute(`SELECT * FROM SpiritualityTags;`);
       res.json(data);
     } catch (error) {
       console.error(error);
