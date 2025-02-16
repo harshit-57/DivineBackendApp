@@ -44,12 +44,24 @@ class GetDivineController {
   async getBlogs(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
+      let filters = ["bg.DeletedOn IS NULL"];
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "bg.PublishedOn";
+
+      if (payload?.status) {
+        filters.push(
+          `bg.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
+      if (payload?.active) {
+        filters.push(`bg.PublishedOn <= NOW()`);
+      }
 
       if (payload?.search) {
         filters.push(`bg.Title LIKE "%${payload.search}%"`);
@@ -198,6 +210,9 @@ class GetDivineController {
             ?.join(",")})`
         );
       }
+      if (payload?.active) {
+        filters.push(`pr.PublishedOn <= NOW()`);
+      }
 
       if (payload?.search) {
         filters.push(`pr.Name LIKE "%${payload.search}%"`);
@@ -258,12 +273,25 @@ class GetDivineController {
   async getSpiritualities(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
+      let filters = ["sp.DeletedOn IS NULL"];
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "sp.PublishedOn";
+
+      if (payload?.status) {
+        filters.push(
+          `sp.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
+
+      if (payload?.active) {
+        filters.push(`sp.PublishedOn <= CURRENT_TIMESTAMP()`);
+      }
 
       if (payload?.search) {
         filters.push(`sp.Title LIKE "%${payload.search}%"`);
@@ -291,7 +319,7 @@ class GetDivineController {
           JOIN SpiritualityMappingCategory as spct ON sp.id = spct.SpiritualityId
           JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY sp.id, ct.id
+          GROUP BY sp.id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );

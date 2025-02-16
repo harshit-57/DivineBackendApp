@@ -328,6 +328,536 @@ class AdminController {
       });
     }
   }
+
+  async createBlog(req, res) {
+    try {
+      let payload = req.body || {};
+
+      if (!payload.title || !payload.description) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      payload.slug = await generatedSlug(payload.title, "Blogs");
+
+      const [blog] = await pool.execute(
+        `INSERT INTO Blogs 
+        (
+        Title, 
+        Slug, 
+        Description, 
+        ShortDescription,
+        Image,
+        Focus_keyphrase,
+        Meta_Title, 
+        Meta_SiteName, 
+        Meta_Desc,
+        IsTop,
+        PublishedOn, 
+        Status
+        ) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          payload.shortDescription || null,
+          null,
+          payload.focusKeyphrase || payload.title,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          payload.isTOP || 1,
+          new Date(payload.publishedOn) > new Date()
+            ? new Data(payload.publishedOn)
+            : new Date(),
+          payload.Status || 1,
+        ]
+      );
+
+      if (!blog)
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create blog",
+        });
+
+      const blogId = blog.insertId;
+
+      if (payload?.categories?.length) {
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id)
+              await pool.execute(
+                `INSERT INTO BlogMappingCategory (BlogId, BlogCategoryId) VALUES (?, ?)`,
+                [blogId, category?.id]
+              );
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            if (tag?.name) {
+              const [oldTag] = await pool.execute(
+                `SELECT Id FROM BlogTags WHERE Name = ?`,
+                [tag?.name]
+              );
+              if (oldTag[0]?.Id)
+                await pool.execute(
+                  `INSERT INTO BlogMappingTag (BlogId, BlogTagId) VALUES (?, ?)`,
+                  [blogId, oldTag[0]?.Id]
+                );
+              else {
+                const [newTag] = await pool.execute(
+                  `INSERT INTO BlogTags (Name, Slug) VALUES (?, ?)`,
+                  [tag?.name, await generatedSlug(tag?.name, "BlogTags")]
+                );
+                await pool.execute(
+                  `INSERT INTO BlogMappingTag (BlogId, BlogTagId) VALUES (?, ?)`,
+                  [blogId, newTag.insertId]
+                );
+              }
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Blog created successfully",
+        data: {
+          slug: payload.slug,
+          id: blogId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateBlog(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [blog] = await pool.execute(`SELECT * FROM Blogs WHERE Id = ?`, [
+        payload.id,
+      ]);
+
+      blog = blog[0];
+
+      if (payload?.slug && blog?.Slug != payload?.slug) {
+        const [existSlug] = await pool.execute(
+          `SELECT Id FROM Blogs WHERE Slug = ?`,
+          [payload.slug]
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.Title = payload.title;
+      if (payload.slug) updateDetails.Slug = payload.slug;
+      if (payload.description) updateDetails.Description = payload.description;
+      if (payload.shortDescription)
+        updateDetails.ShortDescription = payload.shortDescription;
+      // if(payload.image) updateDetails.Image = payload.image;
+      if (payload.focusKeyphrase)
+        updateDetails.Focus_keyphrase = payload.focusKeyphrase;
+      if (payload.metaTitle) updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName)
+        updateDetails.Meta_SiteName = payload.metaSiteName;
+      if (payload.metaDescription)
+        updateDetails.Meta_Desc = payload.metaDescription;
+      if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
+      if (new Date(payload.publishedOn) > new Date())
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+
+      const updatedBlog = await pool.execute(
+        `UPDATE Blogs SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedBlog)
+        return res.json({
+          success: 0,
+          message: "Unable to update blog",
+        });
+
+      if (payload?.categories?.length) {
+        await pool.execute(
+          `DELETE FROM BlogMappingCategory WHERE BlogId = ? AND BlogCategoryId NOT IN (${payload?.categories
+            ?.map((category) => category?.id)
+            ?.join(", ")})`,
+          [payload?.id]
+        );
+
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id) {
+              const [existCategory] = await pool.execute(
+                `SELECT Id FROM BlogMappingCategory WHERE BlogId = ? AND BlogCategoryId = ?`,
+                [payload?.id, category?.id]
+              );
+              if (!existCategory?.length)
+                await pool.execute(
+                  `INSERT INTO BlogMappingCategory (BlogId, BlogCategoryId) VALUES (?, ?)`,
+                  [payload?.id, category?.id]
+                );
+            }
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await pool.execute(
+          `DELETE FROM BlogMappingTag WHERE BlogId = ? ${
+            payload?.tags?.filter((tag) => tag?.id)?.length
+              ? `AND BlogTagId NOT IN (${payload?.tags
+                  ?.filter((tag) => tag?.id)
+                  ?.map((tag) => tag?.id)
+                  ?.join(", ")})`
+              : ""
+          } `,
+          [payload?.id]
+        );
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            if (!tag?.id && tag?.name) {
+              const [oldTag] = await pool.execute(
+                `SELECT Id FROM BlogTags WHERE Name = ?`,
+                [tag?.name]
+              );
+              if (oldTag[0]?.Id)
+                await pool.execute(
+                  `INSERT INTO BlogMappingTag (BlogId, BlogTagId) VALUES (?, ?)`,
+                  [payload?.id, oldTag[0]?.Id]
+                );
+              else {
+                const [newTag] = await pool.execute(
+                  `INSERT INTO BlogTags (Name, Slug) VALUES (?, ?)`,
+                  [tag?.name, await generatedSlug(tag?.name, "BlogTags")]
+                );
+                await pool.execute(
+                  `INSERT INTO BlogMappingTag (BlogId, BlogTagId) VALUES (?, ?)`,
+                  [payload?.id, newTag.insertId]
+                );
+              }
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Blog updated successfully",
+        data: {
+          slug: payload.slug,
+          id: payload?.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async createSpirituality(req, res) {
+    try {
+      let payload = req.body || {};
+
+      if (!payload.title || !payload.description) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      payload.slug = await generatedSlug(payload.title, "Spiritualities");
+
+      const [spirituality] = await pool.execute(
+        `INSERT INTO Spiritualities 
+        (
+        Title, 
+        Slug, 
+        Description, 
+        Image,
+        Focus_keyphrase,
+        Meta_Title, 
+        Meta_SiteName, 
+        Meta_Desc,
+        IsTop,
+        PublishedOn, 
+        Status
+        ) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          null,
+          payload.focusKeyphrase || payload.title,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          payload.isTOP || 1,
+          new Date(payload.publishedOn) > new Date()
+            ? new Data(payload.publishedOn)
+            : new Date(),
+          payload.Status || 1,
+        ]
+      );
+
+      if (!spirituality)
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create spirituality",
+        });
+
+      const spiritualityId = spirituality.insertId;
+
+      if (payload?.categories?.length) {
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id)
+              await pool.execute(
+                `INSERT INTO SpiritualityMappingCategory (SpiritualityId, SpiritualityCategoryId) VALUES (?, ?)`,
+                [spiritualityId, category?.id]
+              );
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            if (tag?.name) {
+              const [oldTag] = await pool.execute(
+                `SELECT Id FROM SpiritualityTags WHERE Name = ?`,
+                [tag?.name]
+              );
+              if (oldTag[0]?.Id)
+                await pool.execute(
+                  `INSERT INTO SpiritualityMappingTag (SpiritualityId, SpiritualityTagId) VALUES (?, ?)`,
+                  [spiritualityId, oldTag[0]?.Id]
+                );
+              else {
+                const [newTag] = await pool.execute(
+                  `INSERT INTO SpiritualityTags (Name, Slug) VALUES (?, ?)`,
+                  [
+                    tag?.name,
+                    await generatedSlug(tag?.name, "SpiritualityTags"),
+                  ]
+                );
+                await pool.execute(
+                  `INSERT INTO SpiritualityMappingTag (SpiritualityId, SpiritualityTagId) VALUES (?, ?)`,
+                  [spiritualityId, newTag.insertId]
+                );
+              }
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Spirituality created successfully",
+        data: {
+          slug: payload.slug,
+          id: spiritualityId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateSpirituality(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [spirituality] = await pool.execute(
+        `SELECT * FROM Spiritualities WHERE Id = ?`,
+        [payload.id]
+      );
+
+      spirituality = spirituality[0];
+
+      if (payload?.slug && spirituality?.Slug != payload?.slug) {
+        const [existSlug] = await pool.execute(
+          `SELECT Id FROM Spiritualities WHERE Slug = ?`,
+          [payload.slug]
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.Title = payload.title;
+      if (payload.slug) updateDetails.Slug = payload.slug;
+      if (payload.description) updateDetails.Description = payload.description;
+      // if(payload.image) updateDetails.Image = payload.image;
+      if (payload.focusKeyphrase)
+        updateDetails.Focus_keyphrase = payload.focusKeyphrase;
+      if (payload.metaTitle) updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName)
+        updateDetails.Meta_SiteName = payload.metaSiteName;
+      if (payload.metaDescription)
+        updateDetails.Meta_Desc = payload.metaDescription;
+      if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
+      console.log(
+        payload.publishedOn,
+        new Date(payload.publishedOn),
+        new Date(spirituality?.publishedOn),
+        new Date(payload.publishedOn) != new Date(spirituality?.PublishedOn)
+      );
+
+      if (new Date(payload.publishedOn) != new Date(spirituality?.PublishedOn))
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+
+      const updatedSpirituality = await pool.execute(
+        `UPDATE Spiritualities SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedSpirituality)
+        return res.json({
+          success: 0,
+          message: "Unable to update spirituality",
+        });
+
+      if (payload?.categories?.length) {
+        await pool.execute(
+          `DELETE FROM SpiritualityMappingCategory WHERE SpiritualityId = ? AND SpiritualityCategoryId NOT IN (${payload?.categories
+            ?.map((category) => category?.id)
+            ?.join(", ")})`,
+          [payload?.id]
+        );
+
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id) {
+              const [existCategory] = await pool.execute(
+                `SELECT Id FROM SpiritualityMappingCategory WHERE SpiritualityId = ? AND SpiritualityCategoryId = ?`,
+                [payload?.id, category?.id]
+              );
+              if (!existCategory?.length)
+                await pool.execute(
+                  `INSERT INTO SpiritualityMappingCategory (SpiritualityId, SpiritualityCategoryId) VALUES (?, ?)`,
+                  [payload?.id, category?.id]
+                );
+            }
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await pool.execute(
+          `DELETE FROM SpiritualityMappingTag WHERE SpiritualityId = ? ${
+            payload?.tags?.filter((tag) => tag?.id)?.length
+              ? `AND SpiritualityTagId NOT IN (${payload?.tags
+                  ?.filter((tag) => tag?.id)
+                  ?.map((tag) => tag?.id)
+                  ?.join(", ")})`
+              : ""
+          } `,
+          [payload?.id]
+        );
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            if (!tag?.id && tag?.name) {
+              const [oldTag] = await pool.execute(
+                `SELECT Id FROM SpiritualityTags WHERE Name = ?`,
+                [tag?.name]
+              );
+              if (oldTag[0]?.Id)
+                await pool.execute(
+                  `INSERT INTO SpiritualityMappingTag (SpiritualityId, SpiritualityTagId) VALUES (?, ?)`,
+                  [payload?.id, oldTag[0]?.Id]
+                );
+              else {
+                const [newTag] = await pool.execute(
+                  `INSERT INTO SpiritualityTags (Name, Slug) VALUES (?, ?)`,
+                  [
+                    tag?.name,
+                    await generatedSlug(tag?.name, "SpiritualityTags"),
+                  ]
+                );
+                await pool.execute(
+                  `INSERT INTO SpiritualityMappingTag (SpiritualityId, SpiritualityTagId) VALUES (?, ?)`,
+                  [payload?.id, newTag.insertId]
+                );
+              }
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Spirituality updated successfully",
+        data: {
+          slug: payload.slug,
+          id: payload?.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
 }
 export default new AdminController();
 
