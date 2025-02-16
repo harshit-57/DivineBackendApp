@@ -18,7 +18,23 @@ class GetDivineController {
   }
   async getBlogTags(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM BlogTags;`);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "BlogTags.id";
+
+      if (payload?.search) {
+        filters.push(`BlogTags.Name LIKE "%${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(`
+        SELECT * FROM BlogTags
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};`);
       res.json(data);
     } catch (error) {
       console.error(error);
@@ -48,15 +64,20 @@ class GetDivineController {
       }
 
       let [data] = await pool.execute(
-        `SELECT bg.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug,
-          JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name)) AS Tags
+        `SELECT bg.* ,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+            FROM BlogMappingCategory bgct 
+            JOIN BlogCategories ct ON bgct.BlogCategoryId = ct.id 
+            WHERE bgct.BlogId = bg.id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            FROM BlogMappingTag bgtag 
+            JOIN BlogTags tag ON bgtag.BlogTagId = tag.id 
+            WHERE bgtag.BlogId = bg.id)  AS Tags
           FROM Blogs as bg
           JOIN BlogMappingCategory as bgct ON bg.id = bgct.BlogId
           JOIN BlogCategories as ct ON bgct.BlogCategoryId = ct.id
-          LEFT JOIN BlogMappingTag as bgtag ON bg.id = bgtag.BlogId
-          LEFT JOIN BlogTags as tag ON bgtag.BlogTagId = tag.id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY bg.id, ct.id
+          GROUP BY bg.id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
@@ -91,6 +112,10 @@ class GetDivineController {
       if (payload?.search) {
         filters.push(`ci.Title LIKE "%${payload.search}%"`);
       }
+      if (payload.slug) {
+        filters.push(`ci.Slug = "${payload.slug}"`);
+      }
+
       let [data] = await pool.execute(
         `SELECT ci.* 
           FROM Citations as ci
@@ -131,7 +156,24 @@ class GetDivineController {
   }
   async getCourseTags(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM ProductTags;`);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "ProductTags.id";
+
+      if (payload?.search) {
+        filters.push(`ProductTags.Name LIKE "%${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(`
+        SELECT * FROM ProductTags
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};
+        `);
       res.json(data);
     } catch (error) {
       console.error(error);
@@ -236,13 +278,18 @@ class GetDivineController {
       }
 
       let [data] = await pool.execute(
-        `SELECT sp.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug,
-          JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name)) AS Tags
+        `SELECT sp.* ,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+            FROM SpiritualityMappingCategory spct 
+            JOIN SpiritualityCategories ct ON spct.SpiritualityCategoryId = ct.id 
+            WHERE spct.SpiritualityId = sp.id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            FROM SpiritualityMappingTag sptag 
+            JOIN SpiritualityTags tag ON sptag.SpiritualityTagId = tag.id 
+            WHERE sptag.SpiritualityId = sp.id)  AS Tags
           FROM Spiritualities as sp
           JOIN SpiritualityMappingCategory as spct ON sp.id = spct.SpiritualityId
           JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.id
-          LEFT JOIN SpiritualityMappingTag as sptag ON sp.id = sptag.SpiritualityId
-          LEFT JOIN SpiritualityTags as tag ON sptag.SpiritualityTagId = tag.id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           GROUP BY sp.id, ct.id
           ORDER BY ${sortBy} ${sort} 
@@ -268,7 +315,25 @@ class GetDivineController {
   }
   async getSpiritualityTags(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM SpiritualityTags;`);
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "SpiritualityTags.id";
+
+      if (payload?.search) {
+        filters.push(`SpiritualityTags.Name LIKE "%${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(`
+        SELECT * FROM SpiritualityTags
+        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+        ORDER BY ${sortBy} ${sort} 
+        LIMIT ${limit} OFFSET ${offset};
+        `);
+      // let [data] = await pool.execute(`SELECT * FROM SpiritualityTags;`);
       res.json(data);
     } catch (error) {
       console.error(error);
@@ -317,15 +382,21 @@ class GetDivineController {
       }
 
       let [data] = await pool.execute(
-        `SELECT ws.* , ct.Name AS CategoryName, ct.id AS CategoryId, ct.slug AS CategorySlug,
-          JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name)) AS Tags,
-          JSON_ARRAYAGG(JSON_OBJECT('id', wsim.id, 'ImageUrl', wsim.WebStoryImageUrl, 'ImageText', wsim.WebStoryImageText, 'ImageOrder', wsim.WebStoryImageOrder )) AS Images
+        `SELECT ws.* ,
+           (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+            FROM WebStoryMappingCategory wsct 
+            JOIN WebStoryCategories ct ON wsct.WebStoryCategoryId = ct.id 
+            WHERE wsct.WebStoryId = ws.id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            FROM WebStoryMappingTag wstag 
+            JOIN WebStoryTags tag ON wstag.WebStoryTagId = tag.id 
+            WHERE wstag.WebStoryId = ws.id)  AS Tags,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', wsim.id, 'ImageUrl', wsim.WebStoryImageUrl, 'ImageText', wsim.WebStoryImageText, 'ImageOrder', wsim.WebStoryImageOrder )) 
+            FROM WebStoryImage wsim 
+            WHERE wsim.WebStoryId = ws.id) AS Images
           FROM WebStories as ws
           JOIN WebStoryMappingCategory as wsct ON ws.id = wsct.WebStoryId
           JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.id
-          LEFT JOIN WebStoryMappingTag as wstag ON ws.id = wstag.WebStoryId
-          LEFT JOIN WebStoryTags as tag ON wstag.WebStoryTagId = tag.id
-          LEFT JOIN WebStoryImage as wsim ON ws.id = wsim.WebStoryId
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           GROUP BY ws.id, ct.id
           ORDER BY ${sortBy} ${sort} 
