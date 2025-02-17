@@ -114,12 +114,21 @@ class GetDivineController {
   async getCitations(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
+      let filters = ["ci.DeletedOn IS NULL"];
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "ci.id";
+
+      if (payload?.status) {
+        filters.push(
+          `ci.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
 
       if (payload?.search) {
         filters.push(`ci.Title LIKE "%${payload.search}%"`);
@@ -469,12 +478,25 @@ class GetDivineController {
   async getTestimonials(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
+      let filters = ["test.DeletedOn IS NULL"];
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "test.id";
+
+      if (payload?.id) {
+        filters.push(`test.Id = "${payload.id}"`);
+      }
+
+      if (payload?.status) {
+        filters.push(
+          `test.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
 
       if (payload?.search) {
         filters.push(`test.UserName LIKE "${payload.search}%"`);
@@ -535,7 +557,7 @@ class GetDivineController {
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
-      const sortBy = payload?.sortBy || "ld.id";
+      const sortBy = payload?.sortBy || "ld.CreatedAt";
 
       if (payload?.search) {
         filters.push(`ld.Name LIKE "${payload.search}%"`);

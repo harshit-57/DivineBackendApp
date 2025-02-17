@@ -220,7 +220,10 @@ class AdminController {
       if (payload.metaDescription)
         updateDetails.Meta_Desc = payload.metaDescription;
       if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
-      if (new Date(payload.publishedOn) > new Date())
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn) != new Date(product?.PublishedOn)
+      )
         updateDetails.PublishedOn = new Date(payload.publishedOn);
       if (payload.status) updateDetails.Status = payload.status;
       if (payload.deletedOn)
@@ -489,7 +492,10 @@ class AdminController {
       if (payload.metaDescription)
         updateDetails.Meta_Desc = payload.metaDescription;
       if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
-      if (new Date(payload.publishedOn) > new Date())
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn) != new Date(blog?.PublishedOn)
+      )
         updateDetails.PublishedOn = new Date(payload.publishedOn);
       if (payload.status) updateDetails.Status = payload.status;
       if (payload.deletedOn)
@@ -749,14 +755,10 @@ class AdminController {
       if (payload.metaDescription)
         updateDetails.Meta_Desc = payload.metaDescription;
       if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
-      console.log(
-        payload.publishedOn,
-        new Date(payload.publishedOn),
-        new Date(spirituality?.publishedOn),
+      if (
+        payload.publishedOn &&
         new Date(payload.publishedOn) != new Date(spirituality?.PublishedOn)
-      );
-
-      if (new Date(payload.publishedOn) != new Date(spirituality?.PublishedOn))
+      )
         updateDetails.PublishedOn = new Date(payload.publishedOn);
       if (payload.status) updateDetails.Status = payload.status;
       if (payload.deletedOn)
@@ -847,6 +849,260 @@ class AdminController {
         message: "Spirituality updated successfully",
         data: {
           slug: payload.slug,
+          id: payload?.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async createCitation(req, res) {
+    try {
+      let payload = req.body || {};
+
+      if (!payload.title || !payload.description) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      payload.slug = await generatedSlug(payload.title, "Citations");
+
+      const [citation] = await pool.execute(
+        `INSERT INTO Citations 
+        (
+        Title, 
+        Slug, 
+        Description,
+        PublishedOn, 
+        Status
+        ) 
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          new Date(payload.publishedOn) > new Date()
+            ? new Data(payload.publishedOn)
+            : new Date(),
+          payload.Status || 1,
+        ]
+      );
+
+      if (!citation)
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create citation",
+        });
+
+      const citationId = citation.insertId;
+
+      return res.json({
+        success: 1,
+        message: "Citation created successfully",
+        data: {
+          slug: payload.slug,
+          id: citationId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateCitation(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [citation] = await pool.execute(
+        `SELECT * FROM Citations WHERE Id = ?`,
+        [payload.id]
+      );
+
+      citation = citation[0];
+
+      if (payload?.slug && citation?.Slug != payload?.slug) {
+        const [existSlug] = await pool.execute(
+          `SELECT Id FROM Citations WHERE Slug = ?`,
+          [payload.slug]
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.Title = payload.title;
+      if (payload.slug) updateDetails.Slug = payload.slug;
+      if (payload.description) updateDetails.Description = payload.description;
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn) != new Date(citation?.PublishedOn)
+      )
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+
+      const updatedCitation = await pool.execute(
+        `UPDATE Citations SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedCitation)
+        return res.json({
+          success: 0,
+          message: "Unable to update citation",
+        });
+
+      return res.json({
+        success: 1,
+        message: "Citation updated successfully",
+        data: {
+          slug: payload.slug,
+          id: payload?.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async createTestimonial(req, res) {
+    try {
+      let payload = req.body || {};
+
+      if (!payload.title || !payload.description) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+      const [testimonial] = await pool.execute(
+        `INSERT INTO Testimonials 
+        (
+        UserName, 
+        Description, 
+        Rating,
+        PublishedOn, 
+        Status
+        ) 
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [
+          payload.title,
+          payload.description,
+          payload?.rating ? Number(payload.rating)?.toFixed(1) : 5,
+          new Date(payload.publishedOn) > new Date()
+            ? new Data(payload.publishedOn)
+            : new Date(),
+          payload.Status || 1,
+        ]
+      );
+
+      if (!testimonial)
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create testimonial",
+        });
+
+      const testimonialId = testimonial.insertId;
+
+      return res.json({
+        success: 1,
+        message: "Testimonial created successfully",
+        data: {
+          slug: payload.slug,
+          id: testimonialId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateTestimonial(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [testimonial] = await pool.execute(
+        `SELECT * FROM Testimonials WHERE Id = ?`,
+        [payload.id]
+      );
+
+      testimonial = testimonial[0];
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.UserName = payload.title;
+      if (payload.description) updateDetails.Description = payload.description;
+      if (payload.rating || payload.rating == "")
+        updateDetails.Rating = payload.rating
+          ? Number(payload.rating)?.toFixed(1)
+          : 5;
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn) != new Date(testimonial?.PublishedOn)
+      )
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+
+      const updatedTestimonial = await pool.execute(
+        `UPDATE Testimonials SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedTestimonial)
+        return res.json({
+          success: 0,
+          message: "Unable to update testimonial",
+        });
+
+      return res.json({
+        success: 1,
+        message: "Testimonial updated successfully",
+        data: {
           id: payload?.id,
         },
       });
