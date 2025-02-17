@@ -21,6 +21,54 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.updateCourse
     );
+
+    this.router.post(
+      "/create-blog",
+      AdminMiddleware,
+      AdminController.createBlog
+    );
+
+    this.router.post(
+      "/update-blog",
+      AdminMiddleware,
+      AdminController.updateBlog
+    );
+
+    this.router.post(
+      "/create-spirituality",
+      AdminMiddleware,
+      AdminController.createSpirituality
+    );
+
+    this.router.post(
+      "/update-spirituality",
+      AdminMiddleware,
+      AdminController.updateSpirituality
+    );
+
+    this.router.post(
+      "/create-citation",
+      AdminMiddleware,
+      AdminController.createCitation
+    );
+
+    this.router.post(
+      "/update-citation",
+      AdminMiddleware,
+      AdminController.updateCitation
+    );
+
+    this.router.post(
+      "/create-testimonial",
+      AdminMiddleware,
+      AdminController.createTestimonial
+    );
+
+    this.router.post(
+      "/update-testimonial",
+      AdminMiddleware,
+      AdminController.updateTestimonial
+    );
   };
 }
 
