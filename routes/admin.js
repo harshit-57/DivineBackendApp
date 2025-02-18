@@ -9,6 +9,24 @@ export default class AdminRoutes {
   }
   routes = () => {
     this.router.post("/login", AdminController.login);
+    this.router.get("/admin", AdminMiddleware, AdminController.getAdmin);
+    this.router.get("/get-admins", AdminMiddleware, AdminController.getAdmins);
+    this.router.get("/get-roles", AdminMiddleware, AdminController.getRoles);
+    this.router.post(
+      "/create-admin",
+      AdminMiddleware,
+      AdminController.createAdmin
+    );
+    this.router.post(
+      "/update-admin",
+      AdminMiddleware,
+      AdminController.updateAdmin
+    );
+    this.router.post(
+      "/delete-admin",
+      AdminMiddleware,
+      AdminController.deleteAdmin
+    );
 
     this.router.post(
       "/create-course",
@@ -98,6 +116,7 @@ const AdminMiddleware = (req, res, next) => {
 
     req.adminId = decoded?.id;
     req.adminEmail = decoded?.email;
+    req.adminRoleId = decoded?.role_id;
 
     next();
   } catch (err) {
