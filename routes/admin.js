@@ -9,7 +9,7 @@ export default class AdminRoutes {
   }
   routes = () => {
     this.router.post("/login", AdminController.login);
-    this.router.get("/admin", AdminMiddleware, AdminController.getAdmin);
+    this.router.get("/get-admin", AdminMiddleware, AdminController.getAdmin);
     this.router.get("/get-admins", AdminMiddleware, AdminController.getAdmins);
     this.router.get("/get-roles", AdminMiddleware, AdminController.getRoles);
     this.router.post(

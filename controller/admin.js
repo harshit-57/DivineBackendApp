@@ -60,11 +60,10 @@ class AdminController {
       }
 
       let [data] = await pool.execute(
-        `
-      SELECT * , AdminRoles.Name AS RoleName, AdminRoles.Permissions AS RolePermissions
-      FROM Admins 
-      JOIN AdminRoles ON Admins.RoleId = AdminRoles.id
-      WHERE id=?`,
+        `SELECT ad.* , AdminRoles.Name AS RoleName, AdminRoles.Permission AS RolePermissions
+      FROM Admins as ad
+      JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+      WHERE ad.id=?;`,
         [id]
       );
 
