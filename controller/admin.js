@@ -1,39 +1,240 @@
 import { pool } from "../db.js";
 import { generateToken } from "../utils/helper.js";
+import bcrypt from "bcrypt";
 
 class AdminController {
   async login(req, res) {
-    const payload = req.body;
-    const { email, password } = payload;
-    if (!email || !password) {
-      return res.json({
-        success: 0,
-        message: "Missing required fields",
-      });
-    }
-    let [data] = await pool.execute(
-      `SELECT * FROM Admins WHERE Email = ? AND Password = ?`,
-      [email, password]
-    );
-    if (!data.length) {
-      return res.json({
-        success: 0,
-        message: "Invalid credentials",
-      });
-    }
-    data = data[0];
+    try {
+      const payload = req.body;
+      const { email, password } = payload;
+      if (!email || !password) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+      let [data] = await pool.execute(`SELECT * FROM Admins WHERE Email = ?`, [
+        email,
+      ]);
+      if (!data.length) {
+        return res.status(401).json({
+          success: 0,
+          message: "Invalid credentials",
+        });
+      }
+      data = data[0];
 
-    delete data.password;
+      if (!bcrypt?.compare(password, data.Password)) {
+        return res.status(401).json({
+          success: 0,
+          message: "Invalid credentials",
+        });
+      }
 
-    const token = generateToken({
-      id: data.id,
-      email: data.email,
-    });
-    res.json({
-      success: 1,
-      data,
-      token,
-    });
+      delete data.password;
+
+      const token = generateToken({
+        id: data.id,
+        email: data.Email,
+        role_id: data.RoleId,
+      });
+      res.json({
+        success: 1,
+        data,
+        token,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async getAdmin(req, res) {
+    try {
+      const id = req.adminId;
+      if (!id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      let [data] = await pool.execute(
+        `SELECT ad.* , AdminRoles.Name AS RoleName, AdminRoles.Permission AS RolePermissions
+      FROM Admins as ad
+      JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+      WHERE ad.id=?;`,
+        [id]
+      );
+
+      if (!data?.length) {
+        return res.status(404).json({
+          success: 0,
+          message: "Admin not found",
+        });
+      }
+      data = data[0];
+      delete data.password;
+
+      res.json({
+        success: 1,
+        data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async getAdmins(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "ad.CreatedAt";
+
+      if (payload?.id) {
+        filters.push(`ad.id = ${payload.id}`);
+      }
+
+      if (payload?.search) {
+        filters.push(`ad.Name LIKE "${payload.search}%"`);
+      }
+
+      let [data] = await pool.execute(
+        `SELECT ad.* , AdminRoles.Name AS RoleName
+          FROM Admins as ad
+          JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM Admins as ad
+       JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+       ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        data,
+        total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async getRoles(req, res) {
+    try {
+      let [data] = await pool.execute(`SELECT * FROM AdminRoles;`);
+      return res.json({
+        success: 1,
+        data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async createAdmin(req, res) {
+    try {
+      let payload = req.body || {};
+      if (
+        !payload.name ||
+        !payload.email ||
+        !payload.password ||
+        !payload.role_id
+      ) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      payload.password = bcrypt.hashSync(payload.password, 10);
+
+      const [data] = await pool.execute(
+        `INSERT INTO Admins (Name, Email, Password, RoleId) VALUES (?, ?, ?, ?)`,
+        [payload.name, payload.email, payload.password, payload.role_id]
+      );
+      return res.json({
+        success: 1,
+        data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async updateAdmin(req, res) {
+    try {
+      let payload = req.body || {};
+      const { id } = payload;
+      if (!id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      let updateDetails = {
+        Name: payload.name || undefined,
+        Email: payload.email || undefined,
+        RoleId: payload.role_id || undefined,
+      };
+
+      if (payload.password) {
+        updateDetails.Password = bcrypt.hashSync(payload.password, 10);
+      }
+
+      const [data] = await pool.execute(
+        `
+        UPDATE Admins SET 
+        ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")}
+        WHERE id = ?`,
+        [...Object.values(updateDetails), id]
+      );
+
+      return res.json({
+        success: 1,
+        data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async deleteAdmin(req, res) {
+    try {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+      const [data] = await pool.execute(`DELETE FROM Admins WHERE id = ?`, [
+        id,
+      ]);
+      return res.json({
+        success: 1,
+        data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
   }
 
   async createCourse(req, res) {
