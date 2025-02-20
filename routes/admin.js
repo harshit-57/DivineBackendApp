@@ -87,6 +87,18 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.updateTestimonial
     );
+
+    this.router.post(
+      "/create-web-story",
+      AdminMiddleware,
+      AdminController.createWebStory
+    );
+
+    this.router.post(
+      "/update-web-story",
+      AdminMiddleware,
+      AdminController.updateWebStory
+    );
   };
 }
 
