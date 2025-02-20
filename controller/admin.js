@@ -1315,6 +1315,256 @@ class AdminController {
       });
     }
   }
+
+  async createWebStory(req, res) {
+    try {
+      let payload = req.body || {};
+
+      console.log(payload);
+
+      if (
+        !payload.title ||
+        !payload.storyImages?.length ||
+        !payload?.shortDescription
+      ) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+      const [webStory] = await pool.execute(
+        `INSERT INTO WebStories 
+        (
+        Title, 
+        ShortDescription,
+        CoverImageUrl,
+        TimeDuration,
+        PublishedOn, 
+        Status
+        ) 
+        VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [
+          payload.title,
+          payload.shortDescription,
+          // payload.image ||
+          "https://acharyaganesh.com/wp-content/uploads/2025/02/Daily-Horoscope.jpg",
+          payload.timeDuration || 500,
+          new Date(payload.publishedOn) > new Date()
+            ? new Data(payload.publishedOn)
+            : new Date(),
+          payload.Status || 1,
+        ]
+      );
+
+      if (!webStory)
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create webStory",
+        });
+
+      const webStoryId = webStory.insertId;
+
+      // if (payload?.storyImages)
+      //   await Promise.all(
+      //     payload?.storyImages?.map(async (image, index) => {
+      //       await pool.execute(
+      //         `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?)`,
+      //         [webStoryId, image?.imageUrl, image?.imageText, image?.imageOrder || index]
+      //       );
+      //     })
+      //   );
+
+      if (payload?.categories?.length) {
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id)
+              await pool.execute(
+                `INSERT INTO WebStoryMappingCategory (WebStoryId, WebStoryCategoryId) VALUES (?, ?)`,
+                [webStoryId, category?.id]
+              );
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            const [oldTag] = await pool.execute(
+              `SELECT Id FROM WebStoryTags WHERE Name = ?`,
+              [tag?.name]
+            );
+            if (oldTag[0]?.Id)
+              await pool.execute(
+                `INSERT INTO WebStoryMappingTag (WebStoryId, WebStoryTagId) VALUES (?, ?)`,
+                [webStoryId, oldTag[0]?.Id]
+              );
+            else {
+              const [newTag] = await pool.execute(
+                `INSERT INTO WebStoryTags (Name, Slug) VALUES (?, ?)`,
+                [tag?.name, await generatedSlug(tag?.name, "WebStoryTags")]
+              );
+              await pool.execute(
+                `INSERT INTO WebStoryMappingTag (WebStoryId, WebStoryTagId) VALUES (?, ?)`,
+                [webStoryId, newTag.insertId]
+              );
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Web Story created successfully",
+        data: {
+          id: webStoryId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateWebStory(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [webStory] = await pool.execute(
+        `SELECT * FROM WebStories WHERE Id = ?`,
+        [payload.id]
+      );
+
+      webStory = webStory[0];
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.Title = payload.title;
+      if (payload.shortDescription)
+        updateDetails.ShortDescription = payload.shortDescription;
+      // if (payload.image) updateDetails.CoverImageUrl = payload.image;
+      if (payload.timeDuration)
+        updateDetails.TimeDuration = payload.timeDuration;
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn) != new Date(webStory?.PublishedOn)
+      )
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+
+      const updatedWebStory = await pool.execute(
+        `UPDATE WebStories SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedWebStory)
+        return res.json({
+          success: 0,
+          message: "Unable to update web story",
+        });
+
+      // if (payload?.storyImages)
+      //   await Promise.all(
+      //     payload?.storyImages?.map(async (image, index) => {
+      //       await pool.execute(
+      //         `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?)`,
+      //         [payload?.id, image?.imageUrl, image?.imageText, image?.imageOrder || index]
+      //       );
+      //     })
+      //   );
+
+      if (payload?.categories?.length) {
+        await pool.execute(
+          `DELETE FROM WebStoryMappingCategory WHERE WebStoryId = ? AND WebStoryCategoryId NOT IN (${payload?.categories
+            ?.map((category) => category?.id)
+            ?.join(", ")})`,
+          [payload?.id]
+        );
+
+        await Promise.all(
+          payload?.categories?.map(async (category) => {
+            if (category?.id) {
+              const [existCategory] = await pool.execute(
+                `SELECT Id FROM WebStoryMappingCategory WHERE WebStoryId = ? AND WebStoryCategoryId = ?`,
+                [payload?.id, category?.id]
+              );
+              if (!existCategory?.length)
+                await pool.execute(
+                  `INSERT INTO WebStoryMappingCategory (WebStoryId, WebStoryCategoryId) VALUES (?, ?)`,
+                  [payload?.id, category?.id]
+                );
+            }
+          })
+        );
+      }
+
+      if (payload?.tags?.length) {
+        await pool.execute(
+          `DELETE FROM WebStoryMappingTag WHERE WebStoryId = ? ${
+            payload?.tags?.filter((tag) => tag?.id)?.length
+              ? `AND WebStoryTagId NOT IN (${payload?.tags
+                  ?.filter((tag) => tag?.id)
+                  ?.map((tag) => tag?.id)
+                  ?.join(", ")})`
+              : ""
+          } `,
+          [payload?.id]
+        );
+        await Promise.all(
+          payload?.tags.map(async (tag) => {
+            if (!tag?.id) {
+              const [oldTag] = await pool.execute(
+                `SELECT Id FROM WebStoryTags WHERE Name = ?`,
+                [tag?.name]
+              );
+              if (oldTag[0]?.Id)
+                await pool.execute(
+                  `INSERT INTO WebStoryMappingTag (WebStoryId, WebStoryTagId) VALUES (?, ?)`,
+                  [payload?.id, oldTag[0]?.Id]
+                );
+              else {
+                const [newTag] = await pool.execute(
+                  `INSERT INTO WebStoryTags (Name, Slug) VALUES (?, ?)`,
+                  [tag?.name, await generatedSlug(tag?.name, "WebStoryTags")]
+                );
+                await pool.execute(
+                  `INSERT INTO WebStoryMappingTag (WebStoryId, WebStoryTagId) VALUES (?, ?)`,
+                  [payload?.id, newTag.insertId]
+                );
+              }
+            }
+          })
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Web Story updated successfully",
+        data: {
+          id: payload?.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
 }
 export default new AdminController();
 
