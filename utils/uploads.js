@@ -14,7 +14,7 @@ import multer from "multer";
 
 // const s3 = new aws.S3();
 
-const API_URL = process.env.API_URL || "http://34.131.192.173";
+const API_URL = process.env.API_URL || "http://34.131.192.173:4200";
 
 // function makeId(ext) {
 //   var result = "";
