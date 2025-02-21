@@ -246,7 +246,8 @@ class AdminController {
         !payload.description ||
         !payload.shortDescription ||
         !payload.productUrl ||
-        !payload.regularPrice
+        !payload.regularPrice ||
+        !payload.image
       ) {
         return res.status(400).json({
           success: 0,
@@ -306,13 +307,11 @@ class AdminController {
         });
 
       const courseId = course.insertId;
+
       if (payload?.image)
         await pool.execute(
           `INSERT INTO ProductMappingImage (ProductId, ImageUrl) VALUES (?, ?)`,
-          [
-            courseId,
-            "https://i0.wp.com/acharyaganesh.com/wp-content/uploads/2025/01/Advanced-Astrology-Course-Planets-In-Houses-Course.webp?fit=800%2C1130&ssl=1",
-          ]
+          [courseId, payload?.image]
         );
 
       if (payload?.categories?.length) {
@@ -412,15 +411,17 @@ class AdminController {
       if (payload.buyText) updateDetails.Buy_Text = payload.buyText;
       if (payload.regularPrice)
         updateDetails.Regular_Price = payload.regularPrice;
-      if (payload.salePrice) updateDetails.Sale_Price = payload.salePrice;
-      if (payload.focusKeyphrase)
+      if (payload.salePrice !== undefined)
+        updateDetails.Sale_Price = payload.salePrice;
+      if (payload.focusKeyphrase !== undefined)
         updateDetails.Focus_keyphrase = payload.focusKeyphrase;
-      if (payload.metaTitle) updateDetails.Meta_Title = payload.metaTitle;
-      if (payload.metaSiteName)
+      if (payload.metaTitle !== undefined)
+        updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName !== undefined)
         updateDetails.Meta_SiteName = payload.metaSiteName;
-      if (payload.metaDescription)
+      if (payload.metaDescription !== undefined)
         updateDetails.Meta_Desc = payload.metaDescription;
-      if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
+      if (payload.isTOP !== undefined) updateDetails.IsTop = payload.isTOP;
       if (
         payload.publishedOn &&
         new Date(payload.publishedOn) != new Date(product?.PublishedOn)
@@ -443,14 +444,16 @@ class AdminController {
           message: "Unable to update course",
         });
 
-      // if (payload?.image)
-      //   await pool.execute(
-      //     `INSERT INTO ProductMappingImage (ProductId, ImageUrl) VALUES (?, ?)`,
-      //     [
-      //       courseId,
-      //       "https://i0.wp.com/acharyaganesh.com/wp-content/uploads/2025/01/Advanced-Astrology-Course-Planets-In-Houses-Course.webp?fit=800%2C1130&ssl=1",
-      //     ]
-      //   );
+      if (payload?.image) {
+        await pool.execute(
+          `DELETE FROM ProductMappingImage WHERE ProductId = ?`,
+          [payload?.id]
+        );
+        await pool.execute(
+          `INSERT INTO ProductMappingImage (ProductId, ImageUrl) VALUES (?, ?)`,
+          [payload?.id, payload?.image]
+        );
+      }
 
       if (payload?.categories?.length) {
         await pool.execute(
@@ -569,7 +572,7 @@ class AdminController {
           payload.slug,
           payload.description,
           payload.shortDescription || null,
-          null,
+          payload.image || null,
           payload.focusKeyphrase || payload.title,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
@@ -682,17 +685,18 @@ class AdminController {
       if (payload.title) updateDetails.Title = payload.title;
       if (payload.slug) updateDetails.Slug = payload.slug;
       if (payload.description) updateDetails.Description = payload.description;
-      if (payload.shortDescription)
+      if (payload.shortDescription !== undefined)
         updateDetails.ShortDescription = payload.shortDescription;
-      // if(payload.image) updateDetails.Image = payload.image;
-      if (payload.focusKeyphrase)
+      if (payload.image !== undefined) updateDetails.Image = payload.image;
+      if (payload.focusKeyphrase !== undefined)
         updateDetails.Focus_keyphrase = payload.focusKeyphrase;
-      if (payload.metaTitle) updateDetails.Meta_Title = payload.metaTitle;
-      if (payload.metaSiteName)
+      if (payload.metaTitle !== undefined)
+        updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName !== undefined)
         updateDetails.Meta_SiteName = payload.metaSiteName;
-      if (payload.metaDescription)
+      if (payload.metaDescription !== undefined)
         updateDetails.Meta_Desc = payload.metaDescription;
-      if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
+      if (payload.isTOP !== undefined) updateDetails.IsTop = payload.isTOP;
       if (
         payload.publishedOn &&
         new Date(payload.publishedOn) != new Date(blog?.PublishedOn)
@@ -830,7 +834,7 @@ class AdminController {
           payload.title,
           payload.slug,
           payload.description,
-          null,
+          payload.image || null,
           payload.focusKeyphrase || payload.title,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
@@ -947,15 +951,16 @@ class AdminController {
       if (payload.title) updateDetails.Title = payload.title;
       if (payload.slug) updateDetails.Slug = payload.slug;
       if (payload.description) updateDetails.Description = payload.description;
-      // if(payload.image) updateDetails.Image = payload.image;
-      if (payload.focusKeyphrase)
+      if (payload.image !== undefined) updateDetails.Image = payload.image;
+      if (payload.focusKeyphrase !== undefined)
         updateDetails.Focus_keyphrase = payload.focusKeyphrase;
-      if (payload.metaTitle) updateDetails.Meta_Title = payload.metaTitle;
-      if (payload.metaSiteName)
+      if (payload.metaTitle !== undefined)
+        updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName !== undefined)
         updateDetails.Meta_SiteName = payload.metaSiteName;
-      if (payload.metaDescription)
+      if (payload.metaDescription !== undefined)
         updateDetails.Meta_Desc = payload.metaDescription;
-      if (payload.isTOP) updateDetails.IsTop = payload.isTOP;
+      if (payload.isTOP !== undefined) updateDetails.IsTop = payload.isTOP;
       if (
         payload.publishedOn &&
         new Date(payload.publishedOn) != new Date(spirituality?.PublishedOn)
@@ -1320,12 +1325,11 @@ class AdminController {
     try {
       let payload = req.body || {};
 
-      console.log(payload);
-
       if (
         !payload.title ||
         !payload.storyImages?.length ||
-        !payload?.shortDescription
+        !payload?.shortDescription ||
+        !payload?.image
       ) {
         return res.status(400).json({
           success: 0,
@@ -1347,8 +1351,8 @@ class AdminController {
         [
           payload.title,
           payload.shortDescription,
-          // payload.image ||
-          "https://acharyaganesh.com/wp-content/uploads/2025/02/Daily-Horoscope.jpg",
+          payload.image ||
+            "https://acharyaganesh.com/wp-content/uploads/2025/02/Daily-Horoscope.jpg",
           payload.timeDuration || 500,
           new Date(payload.publishedOn) > new Date()
             ? new Data(payload.publishedOn)
@@ -1365,15 +1369,15 @@ class AdminController {
 
       const webStoryId = webStory.insertId;
 
-      // if (payload?.storyImages)
-      //   await Promise.all(
-      //     payload?.storyImages?.map(async (image, index) => {
-      //       await pool.execute(
-      //         `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?)`,
-      //         [webStoryId, image?.imageUrl, image?.imageText, image?.imageOrder || index]
-      //       );
-      //     })
-      //   );
+      if (payload?.storyImages)
+        await Promise.all(
+          payload?.storyImages?.map(async (image, index) => {
+            await pool.execute(
+              `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?, ?, ?)`,
+              [webStoryId, image?.imageUrl, image?.imageText, index + 1]
+            );
+          })
+        );
 
       if (payload?.categories?.length) {
         await Promise.all(
@@ -1451,7 +1455,7 @@ class AdminController {
       if (payload.title) updateDetails.Title = payload.title;
       if (payload.shortDescription)
         updateDetails.ShortDescription = payload.shortDescription;
-      // if (payload.image) updateDetails.CoverImageUrl = payload.image;
+      if (payload.image) updateDetails.CoverImageUrl = payload.image;
       if (payload.timeDuration)
         updateDetails.TimeDuration = payload.timeDuration;
       if (
@@ -1476,15 +1480,19 @@ class AdminController {
           message: "Unable to update web story",
         });
 
-      // if (payload?.storyImages)
-      //   await Promise.all(
-      //     payload?.storyImages?.map(async (image, index) => {
-      //       await pool.execute(
-      //         `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?)`,
-      //         [payload?.id, image?.imageUrl, image?.imageText, image?.imageOrder || index]
-      //       );
-      //     })
-      //   );
+      if (payload?.storyImages) {
+        await pool.execute(`DELETE FROM WebStoryImage WHERE WebStoryId = ?`, [
+          payload?.id,
+        ]);
+        await Promise.all(
+          payload?.storyImages?.map(async (image, index) => {
+            await pool.execute(
+              `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?, ?, ?)`,
+              [payload?.id, image?.imageUrl, image?.imageText, index + 1]
+            );
+          })
+        );
+      }
 
       if (payload?.categories?.length) {
         await pool.execute(
