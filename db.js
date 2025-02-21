@@ -13,16 +13,15 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  idleTimeout: 30000
+  idleTimeout: 30000,
 });
 
-console.log('MySQL Pool Configuration:', {
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  database: process.env.DB_DATABASE,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  idleTimeout: 30000
-});
-
+// console.log('MySQL Pool Configuration:', {
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   database: process.env.DB_DATABASE,
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   queueLimit: 0,
+//   idleTimeout: 30000
+// });
