@@ -11,6 +11,7 @@ export class App {
     this.app.use(express.json({ limit: "1000mb" }));
     this.app.use(express.urlencoded({ limit: "1000mb", extended: true }));
     this.app.use(cors());
+    this.app.use("/", express.static("public"));
     Routes.init(this);
   }
 }
