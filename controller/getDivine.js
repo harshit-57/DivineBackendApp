@@ -118,8 +118,8 @@ class GetDivineController {
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
-      const sort = payload?.sort || "DESC";
-      const sortBy = payload?.sortBy || "ci.id";
+      const sort = payload?.sort || "ASC";
+      const sortBy = payload?.sortBy || "ci.Title";
 
       if (payload?.status) {
         filters.push(

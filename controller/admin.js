@@ -158,6 +158,18 @@ class AdminController {
         });
       }
 
+      const [exist] = await pool.execute(
+        `SELECT * FROM Admins WHERE Email = ?`,
+        [payload.email]
+      );
+
+      if (exist.length) {
+        return res.status(400).json({
+          success: 0,
+          message: "Admin already exists",
+        });
+      }
+
       payload.password = bcrypt.hashSync(payload.password, 10);
 
       const [data] = await pool.execute(
