@@ -427,10 +427,7 @@ class GetDivineController {
           (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
             FROM WebStoryMappingTag wstag 
             JOIN WebStoryTags tag ON wstag.WebStoryTagId = tag.id 
-            WHERE wstag.WebStoryId = ws.id)  AS Tags,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('id', wsim.id, 'ImageUrl', wsim.WebStoryImageUrl, 'ImageText', wsim.WebStoryImageText, 'ImageOrder', wsim.WebStoryImageOrder )) 
-            FROM WebStoryImage wsim 
-            WHERE wsim.WebStoryId = ws.id) AS Images
+            WHERE wstag.WebStoryId = ws.id)  AS Tags
           FROM WebStories as ws
           JOIN WebStoryMappingCategory as wsct ON ws.id = wsct.WebStoryId
           JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.id
@@ -439,14 +436,51 @@ class GetDivineController {
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
-      let [count] = await pool.execute(
+      let [total] = await pool.execute(
         `SELECT COUNT(*) as total FROM WebStories as ws
           JOIN WebStoryMappingCategory as wsct ON ws.id = wsct.WebStoryId
           JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
-      const total = count[0].total;
+      total = total[0].total;
+
+      if (payload.id || payload?.slug) {
+        data = await Promise.all(
+          data.map(async (item) => {
+            const { Id } = item;
+            // (SELECT JSON_ARRAYAGG(JSON_OBJECT(
+            //   'id', wsim.id,
+            //   'ImageUrl', wsim.WebStoryImageUrl,
+            //   'ImageText', wsim.WebStoryImageText,
+            //   'ImageOrder', wsim.WebStoryImageOrder,
+            //   'ImageLink', wsim.WebStoryImageLink,
+            //   'ImageLinkText', wsim.WebStoryImageLinkText,
+            //   'ImageLinkIcon', wsim.WebStoryImageLinkIcon))
+            //     FROM WebStoryImage wsim
+            //     WHERE wsim.WebStoryId = ws.id
+            //     ORDER BY wsim.WebStoryImageOrder ASC) AS Images
+            const [images] = await pool.execute(
+              `
+            SELECT wsim.id as id, 
+            wsim.WebStoryImageUrl as ImageUrl, 
+            wsim.WebStoryImageText as ImageText, 
+            wsim.WebStoryImageOrder as ImageOrder, 
+            wsim.WebStoryImageLink as ImageLink, 
+            wsim.WebStoryImageLinkText as ImageLinkText, 
+            wsim.WebStoryImageLinkIcon as ImageLinkIcon
+            FROM WebStoryImage wsim 
+            WHERE wsim.WebStoryId = ?
+            ORDER BY wsim.WebStoryImageOrder ASC`,
+              [Id]
+            );
+
+            item.Images = images;
+            return item;
+          })
+        );
+      }
+
       res.json({
         success: 1,
         data,

@@ -322,8 +322,8 @@ class AdminController {
 
       if (payload?.image)
         await pool.execute(
-          `INSERT INTO ProductMappingImage (ProductId, ImageUrl) VALUES (?, ?)`,
-          [courseId, payload?.image]
+          `INSERT INTO ProductMappingImage (ProductId, ImageUrl, ImageAlt) VALUES (?, ?, ?)`,
+          [courseId, payload?.image, payload?.imageAlt || ""]
         );
 
       if (payload?.categories?.length) {
@@ -462,8 +462,8 @@ class AdminController {
           [payload?.id]
         );
         await pool.execute(
-          `INSERT INTO ProductMappingImage (ProductId, ImageUrl) VALUES (?, ?)`,
-          [payload?.id, payload?.image]
+          `INSERT INTO ProductMappingImage (ProductId, ImageUrl, ImageAlt) VALUES (?, ?, ?)`,
+          [payload?.id, payload?.image, payload?.imageAlt || ""]
         );
       }
 
@@ -569,6 +569,7 @@ class AdminController {
         Description, 
         ShortDescription,
         Image,
+        ImageAlt,
         Focus_keyphrase,
         Meta_Title, 
         Meta_SiteName, 
@@ -577,7 +578,7 @@ class AdminController {
         PublishedOn, 
         Status
         ) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           payload.title,
@@ -585,6 +586,7 @@ class AdminController {
           payload.description,
           payload.shortDescription || null,
           payload.image || null,
+          payload.imageAlt || null,
           payload.focusKeyphrase || payload.title,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
@@ -700,6 +702,8 @@ class AdminController {
       if (payload.shortDescription !== undefined)
         updateDetails.ShortDescription = payload.shortDescription;
       if (payload.image !== undefined) updateDetails.Image = payload.image;
+      if (payload.imageAlt !== undefined)
+        updateDetails.ImageAlt = payload.imageAlt;
       if (payload.focusKeyphrase !== undefined)
         updateDetails.Focus_keyphrase = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
@@ -832,6 +836,7 @@ class AdminController {
         Slug, 
         Description, 
         Image,
+        ImageAlt,
         Focus_keyphrase,
         Meta_Title, 
         Meta_SiteName, 
@@ -847,6 +852,7 @@ class AdminController {
           payload.slug,
           payload.description,
           payload.image || null,
+          payload.imageAlt || null,
           payload.focusKeyphrase || payload.title,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
@@ -964,6 +970,8 @@ class AdminController {
       if (payload.slug) updateDetails.Slug = payload.slug;
       if (payload.description) updateDetails.Description = payload.description;
       if (payload.image !== undefined) updateDetails.Image = payload.image;
+      if (payload.imageAlt !== undefined)
+        updateDetails.ImageAlt = payload.imageAlt;
       if (payload.focusKeyphrase !== undefined)
         updateDetails.Focus_keyphrase = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
@@ -1354,6 +1362,7 @@ class AdminController {
         Title, 
         ShortDescription,
         CoverImageUrl,
+        CoverImageAlt,
         TimeDuration,
         PublishedOn, 
         Status
@@ -1363,8 +1372,8 @@ class AdminController {
         [
           payload.title,
           payload.shortDescription,
-          payload.image ||
-            "https://acharyaganesh.com/wp-content/uploads/2025/02/Daily-Horoscope.jpg",
+          payload.image,
+          payload.imageAlt,
           payload.timeDuration || 500,
           new Date(payload.publishedOn) > new Date()
             ? new Data(payload.publishedOn)
@@ -1385,8 +1394,24 @@ class AdminController {
         await Promise.all(
           payload?.storyImages?.map(async (image, index) => {
             await pool.execute(
-              `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?, ?, ?)`,
-              [webStoryId, image?.imageUrl, image?.imageText, index + 1]
+              `INSERT INTO WebStoryImage 
+              (WebStoryId, 
+              WebStoryImageUrl, 
+              WebStoryImageText, 
+              WebStoryImageOrder, 
+              WebStoryImageLink, 
+              WebStoryImageLinkText, 
+              WebStoryImageLinkIcon) 
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                webStoryId,
+                image?.imageUrl || "",
+                image?.imageText || "",
+                index + 1,
+                image?.imageLink || "",
+                image?.imageLinkText || "",
+                image?.imageLinkIcon || "",
+              ]
             );
           })
         );
@@ -1468,6 +1493,7 @@ class AdminController {
       if (payload.shortDescription)
         updateDetails.ShortDescription = payload.shortDescription;
       if (payload.image) updateDetails.CoverImageUrl = payload.image;
+      if (payload.imageAlt) updateDetails.CoverImageAlt = payload.imageAlt;
       if (payload.timeDuration)
         updateDetails.TimeDuration = payload.timeDuration;
       if (
@@ -1499,8 +1525,24 @@ class AdminController {
         await Promise.all(
           payload?.storyImages?.map(async (image, index) => {
             await pool.execute(
-              `INSERT INTO WebStoryImage (WebStoryId, WebStoryImageUrl, WebStoryImageText, WebStoryImageOrder) VALUES (?, ?, ?, ?)`,
-              [payload?.id, image?.imageUrl, image?.imageText, index + 1]
+              `INSERT INTO WebStoryImage 
+              (WebStoryId, 
+              WebStoryImageUrl, 
+              WebStoryImageText, 
+              WebStoryImageOrder, 
+              WebStoryImageLink, 
+              WebStoryImageLinkText, 
+              WebStoryImageLinkIcon) 
+              VALUES (?, ?, ?, ?, ?, ?, ?)`,
+              [
+                payload?.id,
+                image?.imageUrl || "",
+                image?.imageText || "",
+                index + 1,
+                image?.imageLink || "",
+                image?.imageLinkText || "",
+                image?.imageLinkIcon || "",
+              ]
             );
           })
         );
