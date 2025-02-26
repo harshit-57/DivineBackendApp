@@ -845,7 +845,7 @@ class AdminController {
         PublishedOn, 
         Status
         ) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           payload.title,
@@ -1367,7 +1367,7 @@ class AdminController {
         PublishedOn, 
         Status
         ) 
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [
           payload.title,
