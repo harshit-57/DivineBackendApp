@@ -3,12 +3,30 @@ import { pool } from "../db.js";
 class GetDivineController {
   async getBlogCategories(req, res) {
     try {
+      const payload = req.query;
+      let filters = [];
+
+      let sort = payload?.sort || "ASC";
+      let sortBy = payload?.sortBy || "ct.Name";
+
+      if (payload?.search) {
+        filters.push(`ct.Name LIKE "%${payload.search}%"`);
+      }
+
+      if (payload?.active) {
+        filters.push(
+          `(SELECT COUNT(*) FROM BlogMappingCategory WHERE BlogCategoryId = ct.id) > 0`
+        );
+      }
+
       let [data] = await pool.execute(
-        `SELECT ct.* FROM BlogCategories as ct
-          JOIN BlogMappingCategory as bgct ON ct.id = bgct.BlogCategoryId
-          JOIN Blogs as bg ON bgct.BlogId = bg.id
+        `SELECT ct.*, COUNT(bgct.BlogId) as Count
+         FROM BlogCategories as ct
+          LEFT JOIN BlogMappingCategory as bgct ON ct.id = bgct.BlogCategoryId
+          LEFT JOIN Blogs as bg ON bgct.BlogId = bg.id
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           GROUP BY ct.id
-          ORDER BY ct.Name ASC;`
+          ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
     } catch (error) {
@@ -162,12 +180,30 @@ class GetDivineController {
   }
   async getCourseCategories(req, res) {
     try {
+      const payload = req.query;
+      let filters = [];
+
+      let sort = payload?.sort || "ASC";
+      let sortBy = payload?.sortBy || "ct.Name";
+
+      if (payload?.search) {
+        filters.push(`ct.Name LIKE "%${payload.search}%"`);
+      }
+
+      if (payload?.active) {
+        filters.push(
+          `(SELECT COUNT(*) FROM ProductMappingCategory WHERE ProductCategoryId = ct.id) > 0`
+        );
+      }
+
       let [data] = await pool.execute(
-        `SELECT ct.* FROM ProductCategories as ct
-            JOIN ProductMappingCategory as prct ON ct.id = prct.ProductCategoryId
-            JOIN Products as pr ON prct.ProductId = pr.id
-            GROUP BY ct.id
-            ORDER BY ct.Name ASC;`
+        `SELECT ct.*, COUNT(prct.ProductId) as Count
+         FROM ProductCategories as ct
+          LEFT JOIN ProductMappingCategory as prct ON ct.id = prct.ProductCategoryId
+          LEFT JOIN Products as pr ON prct.ProductId = pr.id
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          GROUP BY ct.id
+          ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
     } catch (error) {
@@ -379,12 +415,30 @@ class GetDivineController {
   }
   async getSpiritualityCategories(req, res) {
     try {
+      const payload = req.query;
+      let filters = [];
+
+      let sort = payload?.sort || "ASC";
+      let sortBy = payload?.sortBy || "ct.Name";
+
+      if (payload?.search) {
+        filters.push(`ct.Name LIKE "%${payload.search}%"`);
+      }
+
+      if (payload?.active) {
+        filters.push(
+          `(SELECT COUNT(*) FROM SpiritualityMappingCategory WHERE SpiritualityCategoryId = ct.id) > 0`
+        );
+      }
+
       let [data] = await pool.execute(
-        `SELECT ct.* FROM SpiritualityCategories as ct
-            JOIN SpiritualityMappingCategory as spct ON ct.id = spct.SpiritualityCategoryId
-            JOIN Spiritualities as sp ON spct.SpiritualityId = sp.id
-            GROUP BY ct.id
-            ORDER BY ct.Name ASC;`
+        `SELECT ct.*, COUNT(spct.SpiritualityId) as Count
+         FROM SpiritualityCategories as ct
+          LEFT JOIN SpiritualityMappingCategory as spct ON ct.id = spct.SpiritualityCategoryId
+          LEFT JOIN Spiritualities as sp ON spct.SpiritualityId = sp.id
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          GROUP BY ct.id
+          ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
     } catch (error) {
@@ -493,7 +547,30 @@ class GetDivineController {
   }
   async getWebStoryCategories(req, res) {
     try {
-      let [data] = await pool.execute(`SELECT * FROM WebStoryCategories;`);
+      const payload = req.query;
+      let filters = [];
+
+      let sort = payload?.sort || "ASC";
+      let sortBy = payload?.sortBy || "ct.Name";
+
+      if (payload?.search) {
+        filters.push(`ct.Name LIKE "%${payload.search}%"`);
+      }
+
+      if (payload?.active) {
+        filters.push(
+          `(SELECT COUNT(*) FROM WebStoryMappingCategory WHERE WebStoryCategoryId = ct.id) > 0`
+        );
+      }
+      let [data] = await pool.execute(
+        `SELECT ct.*, COUNT(wsct.WebStoryId) as Count
+         FROM WebStoryCategories as ct
+          LEFT JOIN WebStoryMappingCategory as wsct ON ct.id = wsct.WebStoryCategoryId
+          LEFT JOIN WebStories as sp ON wsct.WebStoryId = sp.id
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          GROUP BY ct.id
+          ORDER BY ${sortBy} ${sort};`
+      );
       res.json(data);
     } catch (error) {
       console.error(error);

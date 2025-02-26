@@ -22,6 +22,7 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.updateAdmin
     );
+
     this.router.post(
       "/delete-admin",
       AdminMiddleware,
@@ -98,6 +99,12 @@ export default class AdminRoutes {
       "/update-web-story",
       AdminMiddleware,
       AdminController.updateWebStory
+    );
+
+    this.router.post(
+      "/create-category",
+      AdminMiddleware,
+      AdminController.createCategory
     );
   };
 }

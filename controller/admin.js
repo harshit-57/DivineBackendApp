@@ -1627,6 +1627,148 @@ class AdminController {
       });
     }
   }
+
+  async createCategory(req, res) {
+    try {
+      let payload = req.body || {};
+
+      let { name, type } = payload;
+
+      if (!type || !name) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+      switch (type) {
+        case "course":
+          const [category] = await pool.execute(
+            `SELECT Id FROM ProductCategories WHERE Name = ?`,
+            [name]
+          );
+          if (category?.length)
+            return res.status(400).json({
+              success: 0,
+              message: "Category already exists",
+            });
+          else {
+            const slug = await generatedSlug(name, "ProductCategories");
+            const [newCategory] = await pool.execute(
+              `INSERT INTO ProductCategories (Name, Slug) VALUES (?, ?)`,
+              [name, slug]
+            );
+            return res.json({
+              success: 1,
+              message: "Category created successfully",
+              data: {
+                Id: newCategory.insertId,
+                Name: name,
+                Slug: slug,
+              },
+            });
+          }
+          break;
+
+        case "blog":
+          const [blogCategory] = await pool.execute(
+            `SELECT Id FROM BlogCategories WHERE Name = ?`,
+            [name]
+          );
+          if (blogCategory?.length)
+            return res.status(400).json({
+              success: 0,
+              message: "Category already exists",
+            });
+          else {
+            const slug = await generatedSlug(name, "BlogCategories");
+            const [newCategory] = await pool.execute(
+              `INSERT INTO BlogCategories (Name, Slug) VALUES (?, ?)`,
+              [name, slug]
+            );
+            return res.json({
+              success: 1,
+              message: "Category created successfully",
+              data: {
+                Id: newCategory.insertId,
+                Name: name,
+                Slug: slug,
+              },
+            });
+          }
+          break;
+
+        case "spirituality":
+          const [spiritualityCategory] = await pool.execute(
+            `SELECT Id FROM SpiritualityCategories WHERE Name = ?`,
+            [name]
+          );
+
+          if (spiritualityCategory?.length)
+            return res.status(400).json({
+              success: 0,
+              message: "Category already exists",
+            });
+          else {
+            const slug = await generatedSlug(name, "SpiritualityCategories");
+            const [newCategory] = await pool.execute(
+              `INSERT INTO SpiritualityCategories (Name, Slug) VALUES (?, ?)`,
+              [name, slug]
+            );
+            return res.json({
+              success: 1,
+              message: "Category created successfully",
+              data: {
+                Id: newCategory.insertId,
+                Name: name,
+                Slug: slug,
+              },
+            });
+          }
+          break;
+
+        case "story":
+          const [webstoryCategory] = await pool.execute(
+            `SELECT Id FROM WebStoryCategories WHERE Name = ?`,
+            [name]
+          );
+          if (webstoryCategory?.length)
+            return res.status(400).json({
+              success: 0,
+              message: "Category already exists",
+            });
+          else {
+            const slug = await generatedSlug(name, "WebStoryCategories");
+            const [newCategory] = await pool.execute(
+              `INSERT INTO WebStoryCategories (Name, Slug) VALUES (?, ?)`,
+              [name, slug]
+            );
+            return res.json({
+              success: 1,
+              message: "Category created successfully",
+              data: {
+                Id: newCategory.insertId,
+                Name: name,
+                Slug: slug,
+              },
+            });
+          }
+          break;
+
+        default:
+          return res.status(400).json({
+            success: 0,
+            message: "Invalid category type",
+          });
+          break;
+      }
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
 }
 export default new AdminController();
 
