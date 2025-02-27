@@ -1113,7 +1113,7 @@ class AdminController {
         Meta_Desc,
         Status
         ) 
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           payload.title,
