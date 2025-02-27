@@ -456,6 +456,15 @@ class GetDivineController {
       const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "ws.PublishedOn";
 
+      if (payload?.status) {
+        filters.push(
+          `ws.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
+
       if (payload?.search) {
         filters.push(`ws.Title LIKE "%${payload.search}%"`);
       }
