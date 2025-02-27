@@ -299,7 +299,7 @@ class AdminController {
           "Buy Now",
           payload.regularPrice,
           payload.salePrice || null,
-          payload.focusKeyphrase || payload.title,
+          payload.focusKeyphrase || null,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
             "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
@@ -587,7 +587,7 @@ class AdminController {
           payload.shortDescription || null,
           payload.image || null,
           payload.imageAlt || null,
-          payload.focusKeyphrase || payload.title,
+          payload.focusKeyphrase || null,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
             "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
@@ -853,7 +853,7 @@ class AdminController {
           payload.description,
           payload.image || null,
           payload.imageAlt || null,
-          payload.focusKeyphrase || payload.title,
+          payload.focusKeyphrase || null,
           payload.metaTitle || payload.title,
           payload.metaSiteName ||
             "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
@@ -1107,6 +1107,10 @@ class AdminController {
         Slug, 
         Description,
         PublishedOn, 
+        Focus_keyphrase,
+        Meta_Title, 
+        Meta_SiteName, 
+        Meta_Desc,
         Status
         ) 
         VALUES (?, ?, ?, ?, ?)
@@ -1118,6 +1122,11 @@ class AdminController {
           new Date(payload.publishedOn) > new Date()
             ? new Data(payload.publishedOn)
             : new Date(),
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
           payload.Status || 1,
         ]
       );
@@ -1187,6 +1196,14 @@ class AdminController {
         new Date(payload.publishedOn) != new Date(citation?.PublishedOn)
       )
         updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.focusKeyphrase !== undefined)
+        updateDetails.Focus_keyphrase = payload.focusKeyphrase;
+      if (payload.metaTitle !== undefined)
+        updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName !== undefined)
+        updateDetails.Meta_SiteName = payload.metaSiteName;
+      if (payload.metaDescription !== undefined)
+        updateDetails.Meta_Desc = payload.metaDescription;
       if (payload.status) updateDetails.Status = payload.status;
       if (payload.deletedOn)
         updateDetails.DeletedOn = new Date(payload.deletedOn);
