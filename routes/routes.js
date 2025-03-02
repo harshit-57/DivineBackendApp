@@ -10,12 +10,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export default class Routes {
   static init(server) {
     const router = express.Router();
-    server.app.use("/v1/GetDivine", new GetDivineRoutes().router);
-    server.app.use("/v1/Admin", new AdminRoutes().router);
+    server.app.use("/api/v1/GetDivine", new GetDivineRoutes().router);
+    server.app.use("/api/v1/Admin", new AdminRoutes().router);
 
-    server.app.post("/v1/upload", uploadImages);
+    server.app.post("/api/v1/upload", uploadImages);
 
-    server.app.get("/", (req, res) => {
+    server.app.get("/api", (req, res) => {
       return res.send(`
          <h1 style="margin: 100px; text-align: center;">Welcome to Divine Backend</h1>
         `);

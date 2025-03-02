@@ -4,8 +4,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "cross-env NODE_ENV=production node index.js",
+    "local": "nodemon index.js",
+    "dev": "cross-env NODE_ENV=development nodemon index.js",
+    "prod": "cross-env NODE_ENV=production nodemon index.js"
   },
   "keywords": [],
   "author": "Bhavesh Garg",
@@ -29,6 +31,7 @@
     "pg": "^8.13.3"
   },
   "devDependencies": {
-    "@types/pg": "^8.11.11"
- }
+    "@types/pg": "^8.11.11",
+    "cross-env": "^7.0.3"
+  }
 }
