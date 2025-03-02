@@ -1,27 +1,45 @@
+// import dotenv from "dotenv";
+// dotenv.config({
+//   path: `${process.env.NODE_ENV ? ".env." + process.env.NODE_ENV : ".env"}`,
+// });
+
+// import mysql from "mysql2/promise";
+
+// export const pool = mysql.createPool({
+//   host: process.env.DB_HOST,
+//   user: process.env.DB_USER,
+//   password: process.env.DB_PASSWORD,
+//   database: process.env.DB_DATABASE,
+//   waitForConnections: true,
+//   connectionLimit: 10,
+//   queueLimit: 0,
+//   idleTimeout: 30000,
+// });
+
 import dotenv from "dotenv";
 dotenv.config({
   path: `${process.env.NODE_ENV ? ".env." + process.env.NODE_ENV : ".env"}`,
 });
 
-import mysql from "mysql2/promise";
+import pkg from "pg";
+const { Pool } = pkg;
 
-export const pool = mysql.createPool({
+export const pool = new Pool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  idleTimeout: 30000,
+  port: process.env.DB_PORT || 5432,
+  max: 10,
+  idleTimeoutMillis: 300000,
+  connectionTimeoutMillis: 20000,
+  options: "-c search_path=dbo",
 });
 
-// console.log('MySQL Pool Configuration:', {
-//   host: process.env.DB_HOST,
-//   user: process.env.DB_USER,
-//   database: process.env.DB_DATABASE,
-//   waitForConnections: true,
-//   connectionLimit: 10,
-//   queueLimit: 0,
-//   idleTimeout: 30000
-// });
+pool.connect();
+// const res = await pool.query("SHOW search_path;");
+// console.log(res.rows);
+
+// Optional: Test the connection
+pool.on("connect", () => console.log("Connected to PostgreSQL"));
+pool.on("error", (err) => console.error("Pool error:", err.stack));
