@@ -1,5 +1,5 @@
 import { Router } from "express";
-import AdminController from "../controller/postgres/admin.js";
+import AdminController from "../controller/sql/admin.js";
 import { decodedToken, verifyToken } from "../utils/helper.js";
 
 export default class AdminRoutes {
