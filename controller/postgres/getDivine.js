@@ -648,7 +648,7 @@ class GetDivineController {
     try {
       const payload = req.body;
       const { name, email, phone, service, message } = payload;
-      if (!name || !message) {
+      if (!name) {
         return res.json({
           success: 0,
           message: "Missing required fields",
