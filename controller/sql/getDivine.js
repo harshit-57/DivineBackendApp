@@ -650,7 +650,7 @@ class GetDivineController {
     try {
       const payload = req.body;
       const { name, email, phone, service, message } = payload;
-      if (!name || !email || !phone || !message) {
+      if (!name) {
         return res.json({
           success: 0,
           message: "Missing required fields",
@@ -658,7 +658,13 @@ class GetDivineController {
       }
       let [data] = await pool.execute(
         `INSERT INTO Leads (Name, Email, Phone, Service, Message) VALUES (?, ?, ?, ?, ?);`,
-        [name, email, phone, service || null, message]
+        [
+          name || null,
+          email || null,
+          phone || null,
+          service || null,
+          message || null,
+        ]
       );
       res.json({
         success: 1,

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import GetDivineController from "../controller/postgres/getDivine.js";
+import GetDivineController from "../controller/sql/getDivine.js";
 
 export default class GetDivineRoutes {
   constructor() {
