@@ -713,6 +713,54 @@ class GetDivineController {
       res.status(500).json({ status: false, message: error?.message });
     }
   }
+
+  async getBookingSlots(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "ASC";
+      const sortBy = payload?.sortBy || "sl.Date";
+
+      if (payload?.id) {
+        filters.push(`sl.Id = "${payload.id}"`);
+      }
+
+      if (payload?.date) {
+        filters.push(`sl.Date = "${payload.date}"`);
+      }
+
+      if (payload?.status) {
+        filters.push(`sl.Status = "${payload.status}"`);
+      }
+
+      let [data] = await pool.execute(
+        `SELECT sl.* 
+          FROM BookingSlots as sl
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM BookingSlots as sl
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        data,
+        total,
+      });
+      // let [data] = await pool.execute(`SELECT * FROM Testimonials;`);
+      // res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
 }
 
 export default new GetDivineController();
