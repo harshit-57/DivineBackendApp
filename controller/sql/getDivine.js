@@ -15,17 +15,17 @@ class GetDivineController {
 
       if (payload?.active) {
         filters.push(
-          `(SELECT COUNT(*) FROM BlogMappingCategory WHERE BlogCategoryId = ct.id) > 0`
+          `(SELECT COUNT(*) FROM BlogMappingCategory WHERE BlogCategoryId = ct.Id) > 0`
         );
       }
 
       let [data] = await pool.execute(
         `SELECT ct.*, COUNT(bgct.BlogId) as Count
          FROM BlogCategories as ct
-          LEFT JOIN BlogMappingCategory as bgct ON ct.id = bgct.BlogCategoryId
-          LEFT JOIN Blogs as bg ON bgct.BlogId = bg.id
+          LEFT JOIN BlogMappingCategory as bgct ON ct.Id = bgct.BlogCategoryId
+          LEFT JOIN Blogs as bg ON bgct.BlogId = bg.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY ct.id
+          GROUP BY ct.Id
           ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
@@ -42,7 +42,7 @@ class GetDivineController {
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
-      const sortBy = payload?.sortBy || "BlogTags.id";
+      const sortBy = payload?.sortBy || "BlogTags.Id";
 
       if (payload?.search) {
         filters.push(`BlogTags.Name LIKE "%${payload.search}%"`);
@@ -95,26 +95,26 @@ class GetDivineController {
 
       let [data] = await pool.execute(
         `SELECT bg.* ,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.Id, 'CategorySlug', ct.slug))
             FROM BlogMappingCategory bgct 
-            JOIN BlogCategories ct ON bgct.BlogCategoryId = ct.id 
-            WHERE bgct.BlogId = bg.id) AS Categories,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            JOIN BlogCategories ct ON bgct.BlogCategoryId = ct.Id 
+            WHERE bgct.BlogId = bg.Id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.Id, 'TagName', tag.Name))
             FROM BlogMappingTag bgtag 
-            JOIN BlogTags tag ON bgtag.BlogTagId = tag.id 
-            WHERE bgtag.BlogId = bg.id)  AS Tags
+            JOIN BlogTags tag ON bgtag.BlogTagId = tag.Id 
+            WHERE bgtag.BlogId = bg.Id)  AS Tags
           FROM Blogs as bg
-          JOIN BlogMappingCategory as bgct ON bg.id = bgct.BlogId
-          JOIN BlogCategories as ct ON bgct.BlogCategoryId = ct.id
+          JOIN BlogMappingCategory as bgct ON bg.Id = bgct.BlogId
+          JOIN BlogCategories as ct ON bgct.BlogCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY bg.id
+          GROUP BY bg.Id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
         `SELECT COUNT(*) as total FROM Blogs as bg
-          JOIN BlogMappingCategory as bgct ON bg.id = bgct.BlogId
-          JOIN BlogCategories as ct ON bgct.BlogCategoryId = ct.id
+          JOIN BlogMappingCategory as bgct ON bg.Id = bgct.BlogId
+          JOIN BlogCategories as ct ON bgct.BlogCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -192,17 +192,17 @@ class GetDivineController {
 
       if (payload?.active) {
         filters.push(
-          `(SELECT COUNT(*) FROM ProductMappingCategory WHERE ProductCategoryId = ct.id) > 0`
+          `(SELECT COUNT(*) FROM ProductMappingCategory WHERE ProductCategoryId = ct.Id) > 0`
         );
       }
 
       let [data] = await pool.execute(
         `SELECT ct.*, COUNT(prct.ProductId) as Count
          FROM ProductCategories as ct
-          LEFT JOIN ProductMappingCategory as prct ON ct.id = prct.ProductCategoryId
-          LEFT JOIN Products as pr ON prct.ProductId = pr.id
+          LEFT JOIN ProductMappingCategory as prct ON ct.Id = prct.ProductCategoryId
+          LEFT JOIN Products as pr ON prct.ProductId = pr.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY ct.id
+          GROUP BY ct.Id
           ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
@@ -219,7 +219,7 @@ class GetDivineController {
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
-      const sortBy = payload?.sortBy || "ProductTags.id";
+      const sortBy = payload?.sortBy || "ProductTags.Id";
 
       if (payload?.search) {
         filters.push(`ProductTags.Name LIKE "%${payload.search}%"`);
@@ -278,29 +278,29 @@ class GetDivineController {
 
       let [data] = await pool.execute(
         `SELECT pr.* ,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.Id, 'CategorySlug', ct.slug))
             FROM ProductMappingCategory prct 
-            JOIN ProductCategories ct ON prct.ProductCategoryId = ct.id 
-            WHERE prct.ProductId = pr.id) AS Categories,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            JOIN ProductCategories ct ON prct.ProductCategoryId = ct.Id 
+            WHERE prct.ProductId = pr.Id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.Id, 'TagName', tag.Name))
             FROM ProductMappingTag prtag 
-            JOIN ProductTags tag ON prtag.ProductTagId = tag.id 
-            WHERE prtag.ProductId = pr.id)  AS Tags,
+            JOIN ProductTags tag ON prtag.ProductTagId = tag.Id 
+            WHERE prtag.ProductId = pr.Id)  AS Tags,
           (SELECT JSON_ARRAYAGG(prim.ImageUrl) 
             FROM ProductMappingImage prim 
-            WHERE prim.ProductId = pr.id) AS Images
+            WHERE prim.ProductId = pr.Id) AS Images
           FROM Products as pr
-          JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
-          JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
+          JOIN ProductMappingCategory as prct ON pr.Id = prct.ProductId
+          JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           GROUP BY pr.Id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
-        `SELECT COUNT(DISTINCT(pr.id)) as total FROM Products as pr
-        JOIN ProductMappingCategory as prct ON pr.id = prct.ProductId
-        JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.id
+        `SELECT COUNT(DISTINCT(pr.Id)) as total FROM Products as pr
+        JOIN ProductMappingCategory as prct ON pr.Id = prct.ProductId
+        JOIN ProductCategories as ct ON prct.ProductCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -352,26 +352,26 @@ class GetDivineController {
 
       let [data] = await pool.execute(
         `SELECT sp.* ,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.Id, 'CategorySlug', ct.slug))
             FROM SpiritualityMappingCategory spct 
-            JOIN SpiritualityCategories ct ON spct.SpiritualityCategoryId = ct.id 
-            WHERE spct.SpiritualityId = sp.id) AS Categories,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            JOIN SpiritualityCategories ct ON spct.SpiritualityCategoryId = ct.Id 
+            WHERE spct.SpiritualityId = sp.Id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.Id, 'TagName', tag.Name))
             FROM SpiritualityMappingTag sptag 
-            JOIN SpiritualityTags tag ON sptag.SpiritualityTagId = tag.id 
-            WHERE sptag.SpiritualityId = sp.id)  AS Tags
+            JOIN SpiritualityTags tag ON sptag.SpiritualityTagId = tag.Id 
+            WHERE sptag.SpiritualityId = sp.Id)  AS Tags
           FROM Spiritualities as sp
-          JOIN SpiritualityMappingCategory as spct ON sp.id = spct.SpiritualityId
-          JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.id
+          JOIN SpiritualityMappingCategory as spct ON sp.Id = spct.SpiritualityId
+          JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY sp.id
+          GROUP BY sp.Id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
         `SELECT COUNT(*) as total FROM Spiritualities as sp
-          JOIN SpiritualityMappingCategory as spct ON sp.id = spct.SpiritualityId
-          JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.id
+          JOIN SpiritualityMappingCategory as spct ON sp.Id = spct.SpiritualityId
+          JOIN SpiritualityCategories as ct ON spct.SpiritualityCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -394,7 +394,7 @@ class GetDivineController {
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
-      const sortBy = payload?.sortBy || "SpiritualityTags.id";
+      const sortBy = payload?.sortBy || "SpiritualityTags.Id";
 
       if (payload?.search) {
         filters.push(`SpiritualityTags.Name LIKE "%${payload.search}%"`);
@@ -427,17 +427,17 @@ class GetDivineController {
 
       if (payload?.active) {
         filters.push(
-          `(SELECT COUNT(*) FROM SpiritualityMappingCategory WHERE SpiritualityCategoryId = ct.id) > 0`
+          `(SELECT COUNT(*) FROM SpiritualityMappingCategory WHERE SpiritualityCategoryId = ct.Id) > 0`
         );
       }
 
       let [data] = await pool.execute(
         `SELECT ct.*, COUNT(spct.SpiritualityId) as Count
          FROM SpiritualityCategories as ct
-          LEFT JOIN SpiritualityMappingCategory as spct ON ct.id = spct.SpiritualityCategoryId
-          LEFT JOIN Spiritualities as sp ON spct.SpiritualityId = sp.id
+          LEFT JOIN SpiritualityMappingCategory as spct ON ct.Id = spct.SpiritualityCategoryId
+          LEFT JOIN Spiritualities as sp ON spct.SpiritualityId = sp.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY ct.id
+          GROUP BY ct.Id
           ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
@@ -483,26 +483,26 @@ class GetDivineController {
 
       let [data] = await pool.execute(
         `SELECT ws.* ,
-           (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.id, 'CategorySlug', ct.slug))
+           (SELECT JSON_ARRAYAGG(JSON_OBJECT('CategoryName', ct.Name, 'CategoryId', ct.Id, 'CategorySlug', ct.slug))
             FROM WebStoryMappingCategory wsct 
-            JOIN WebStoryCategories ct ON wsct.WebStoryCategoryId = ct.id 
-            WHERE wsct.WebStoryId = ws.id) AS Categories,
-          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.id, 'TagName', tag.Name))
+            JOIN WebStoryCategories ct ON wsct.WebStoryCategoryId = ct.Id 
+            WHERE wsct.WebStoryId = ws.Id) AS Categories,
+          (SELECT JSON_ARRAYAGG(JSON_OBJECT('TagId', tag.Id, 'TagName', tag.Name))
             FROM WebStoryMappingTag wstag 
-            JOIN WebStoryTags tag ON wstag.WebStoryTagId = tag.id 
-            WHERE wstag.WebStoryId = ws.id)  AS Tags
+            JOIN WebStoryTags tag ON wstag.WebStoryTagId = tag.Id 
+            WHERE wstag.WebStoryId = ws.Id)  AS Tags
           FROM WebStories as ws
-          JOIN WebStoryMappingCategory as wsct ON ws.id = wsct.WebStoryId
-          JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.id
+          JOIN WebStoryMappingCategory as wsct ON ws.Id = wsct.WebStoryId
+          JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY ws.id, ct.id
+          GROUP BY ws.Id, ct.Id
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [total] = await pool.execute(
         `SELECT COUNT(*) as total FROM WebStories as ws
-          JOIN WebStoryMappingCategory as wsct ON ws.id = wsct.WebStoryId
-          JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.id
+          JOIN WebStoryMappingCategory as wsct ON ws.Id = wsct.WebStoryId
+          JOIN WebStoryCategories as ct ON wsct.WebStoryCategoryId = ct.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -513,7 +513,7 @@ class GetDivineController {
           data.map(async (item) => {
             const { Id } = item;
             // (SELECT JSON_ARRAYAGG(JSON_OBJECT(
-            //   'id', wsim.id,
+            //   'id', wsim.Id,
             //   'ImageUrl', wsim.WebStoryImageUrl,
             //   'ImageText', wsim.WebStoryImageText,
             //   'ImageOrder', wsim.WebStoryImageOrder,
@@ -521,11 +521,11 @@ class GetDivineController {
             //   'ImageLinkText', wsim.WebStoryImageLinkText,
             //   'ImageLinkIcon', wsim.WebStoryImageLinkIcon))
             //     FROM WebStoryImage wsim
-            //     WHERE wsim.WebStoryId = ws.id
+            //     WHERE wsim.WebStoryId = ws.Id
             //     ORDER BY wsim.WebStoryImageOrder ASC) AS Images
             const [images] = await pool.execute(
               `
-            SELECT wsim.id as id, 
+            SELECT wsim.Id as id, 
             wsim.WebStoryImageUrl as ImageUrl, 
             wsim.WebStoryImageText as ImageText, 
             wsim.WebStoryImageOrder as ImageOrder, 
@@ -568,16 +568,16 @@ class GetDivineController {
 
       if (payload?.active) {
         filters.push(
-          `(SELECT COUNT(*) FROM WebStoryMappingCategory WHERE WebStoryCategoryId = ct.id) > 0`
+          `(SELECT COUNT(*) FROM WebStoryMappingCategory WHERE WebStoryCategoryId = ct.Id) > 0`
         );
       }
       let [data] = await pool.execute(
         `SELECT ct.*, COUNT(wsct.WebStoryId) as Count
          FROM WebStoryCategories as ct
-          LEFT JOIN WebStoryMappingCategory as wsct ON ct.id = wsct.WebStoryCategoryId
-          LEFT JOIN WebStories as sp ON wsct.WebStoryId = sp.id
+          LEFT JOIN WebStoryMappingCategory as wsct ON ct.Id = wsct.WebStoryCategoryId
+          LEFT JOIN WebStories as sp ON wsct.WebStoryId = sp.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY ct.id
+          GROUP BY ct.Id
           ORDER BY ${sortBy} ${sort};`
       );
       res.json(data);
@@ -603,7 +603,7 @@ class GetDivineController {
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "DESC";
-      const sortBy = payload?.sortBy || "test.id";
+      const sortBy = payload?.sortBy || "test.Id";
 
       if (payload?.id) {
         filters.push(`test.Id = "${payload.id}"`);

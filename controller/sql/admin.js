@@ -62,8 +62,8 @@ class AdminController {
       let [data] = await pool.execute(
         `SELECT ad.* , AdminRoles.Name AS RoleName, AdminRoles.Permission AS RolePermissions
       FROM Admins as ad
-      JOIN AdminRoles ON ad.RoleId = AdminRoles.id
-      WHERE ad.id=?;`,
+      JOIN AdminRoles ON ad.RoleId = AdminRoles.Id
+      WHERE ad.Id=?;`,
         [id]
       );
 
@@ -97,7 +97,7 @@ class AdminController {
       const sortBy = payload?.sortBy || "ad.CreatedAt";
 
       if (payload?.id) {
-        filters.push(`ad.id = ${payload.id}`);
+        filters.push(`ad.Id = ${payload.id}`);
       }
 
       if (payload?.search) {
@@ -107,14 +107,14 @@ class AdminController {
       let [data] = await pool.execute(
         `SELECT ad.* , AdminRoles.Name AS RoleName
           FROM Admins as ad
-          JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+          JOIN AdminRoles ON ad.RoleId = AdminRoles.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
         `SELECT COUNT(*) as total FROM Admins as ad
-       JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+       JOIN AdminRoles ON ad.RoleId = AdminRoles.Id
        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -213,7 +213,7 @@ class AdminController {
         ${Object.keys(updateDetails)
           ?.map((key) => `${key} = ?`)
           .join(", ")}
-        WHERE id = ?`,
+        WHERE Id = ?`,
         [...Object.values(updateDetails), id]
       );
 
