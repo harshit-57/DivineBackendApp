@@ -41,5 +41,6 @@ export default class GetDivineRoutes {
     this.router.get("/getTestimonials", GetDivineController.getTestimonials);
     this.router.post("/createLead", GetDivineController.createLead);
     this.router.get("/getLeads", GetDivineController.getLeads);
+    this.router.get("/getServices", GetDivineController.getServices);
   };
 }

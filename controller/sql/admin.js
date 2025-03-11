@@ -62,8 +62,8 @@ class AdminController {
       let [data] = await pool.execute(
         `SELECT ad.* , AdminRoles.Name AS RoleName, AdminRoles.Permission AS RolePermissions
       FROM Admins as ad
-      JOIN AdminRoles ON ad.RoleId = AdminRoles.id
-      WHERE ad.id=?;`,
+      JOIN AdminRoles ON ad.RoleId = AdminRoles.Id
+      WHERE ad.Id=?;`,
         [id]
       );
 
@@ -97,7 +97,7 @@ class AdminController {
       const sortBy = payload?.sortBy || "ad.CreatedAt";
 
       if (payload?.id) {
-        filters.push(`ad.id = ${payload.id}`);
+        filters.push(`ad.Id = ${payload.id}`);
       }
 
       if (payload?.search) {
@@ -107,14 +107,14 @@ class AdminController {
       let [data] = await pool.execute(
         `SELECT ad.* , AdminRoles.Name AS RoleName
           FROM Admins as ad
-          JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+          JOIN AdminRoles ON ad.RoleId = AdminRoles.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
         `SELECT COUNT(*) as total FROM Admins as ad
-       JOIN AdminRoles ON ad.RoleId = AdminRoles.id
+       JOIN AdminRoles ON ad.RoleId = AdminRoles.Id
        ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -213,7 +213,7 @@ class AdminController {
         ${Object.keys(updateDetails)
           ?.map((key) => `${key} = ?`)
           .join(", ")}
-        WHERE id = ?`,
+        WHERE Id = ?`,
         [...Object.values(updateDetails), id]
       );
 
@@ -1778,6 +1778,182 @@ class AdminController {
           });
           break;
       }
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async createService(req, res) {
+    try {
+      let payload = req.body || {};
+
+      if (!payload.title || !payload.description) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      payload.slug = await generatedSlug(payload.title, "Services");
+
+      const [service] = await pool.execute(
+        `INSERT INTO Services 
+        (
+        Name,
+        Slug, 
+        Description, 
+        Title, 
+        SubTitle,
+        Image,
+        ImageAlt,
+        Link,
+        LinkText,
+        Focus_keyphrase,
+        Meta_Title, 
+        Meta_SiteName, 
+        Meta_Desc,
+        PublishedOn, 
+        Status,
+        ParentId
+        ) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          payload.header,
+          payload.subHeader,
+          payload.image || null,
+          payload.imageAlt || null,
+          payload.link || null,
+          payload.linkText || null,
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          new Date(payload.publishedOn) > new Date()
+            ? new Data(payload.publishedOn)
+            : new Date(),
+          payload.Status || 1,
+          payload.parentId || null,
+        ]
+      );
+
+      if (!service)
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create service",
+        });
+
+      const serviceId = service.insertId;
+
+      return res.json({
+        success: 1,
+        message: "Service created successfully",
+        data: {
+          slug: payload.slug,
+          id: serviceId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateService(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [service] = await pool.execute(
+        `SELECT * FROM Services WHERE Id = ?`,
+        [payload.id]
+      );
+
+      service = service[0];
+
+      if (payload?.slug && service?.Slug != payload?.slug) {
+        const [existSlug] = await pool.execute(
+          `SELECT Id FROM Services WHERE Slug = ?`,
+          [payload.slug]
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails.Name = payload.title;
+      if (payload.slug) updateDetails.Slug = payload.slug;
+      if (payload.description) updateDetails.Description = payload.description;
+      if (payload.header) updateDetails.Title = payload.header;
+      if (payload.subHeader !== undefined)
+        updateDetails.SubTitle = payload.subHeader;
+      if (payload.image !== undefined) updateDetails.Image = payload.image;
+      if (payload.imageAlt !== undefined)
+        updateDetails.ImageAlt = payload.imageAlt;
+      if (payload.link !== undefined) updateDetails.Link = payload.link;
+      if (payload.linkText !== undefined)
+        updateDetails.LinkText = payload.linkText;
+      if (payload.focusKeyphrase !== undefined)
+        updateDetails.Focus_keyphrase = payload.focusKeyphrase;
+      if (payload.metaTitle !== undefined)
+        updateDetails.Meta_Title = payload.metaTitle;
+      if (payload.metaSiteName !== undefined)
+        updateDetails.Meta_SiteName = payload.metaSiteName;
+      if (payload.metaDescription !== undefined)
+        updateDetails.Meta_Desc = payload.metaDescription;
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn) != new Date(service?.PublishedOn)
+      )
+        updateDetails.PublishedOn = new Date(payload.publishedOn);
+      if (payload.status) updateDetails.Status = payload.status;
+      if (payload.deletedOn)
+        updateDetails.DeletedOn = new Date(payload.deletedOn);
+      if (payload.parentId !== undefined)
+        updateDetails.ParentId = payload.parentId;
+
+      const updatedService = await pool.execute(
+        `UPDATE Services SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedService)
+        return res.json({
+          success: 0,
+          message: "Unable to update service",
+        });
+
+      return res.json({
+        success: 1,
+        message: "Service updated successfully",
+        data: {
+          slug: payload.slug,
+          id: payload?.id,
+        },
+      });
     } catch (error) {
       console.log(error);
       return res.status(500).json({
