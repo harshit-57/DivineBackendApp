@@ -714,6 +714,65 @@ class GetDivineController {
     }
   }
 
+  async getServices(req, res) {
+    try {
+      const payload = req.query;
+      let filters = ["sr.DeletedOn IS NULL"];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "ASC";
+      const sortBy = payload?.sortBy || "sr.Id";
+
+      if (payload?.status) {
+        filters.push(
+          `sr.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
+      if (payload?.active) {
+        filters.push(
+          `sr.PublishedOn <= DATE(NOW() + INTERVAL '15:30' HOUR_MINUTE)`
+        );
+      }
+
+      if (payload?.search) {
+        filters.push(
+          `(sr.Name LIKE "%${payload.search}%" OR sr.Title LIKE "%${payload.search}%")`
+        );
+      }
+
+      if (payload.slug) {
+        filters.push(`sr.Slug = "${payload.slug}"`);
+      }
+
+      let [data] = await pool.execute(
+        `SELECT sr.* , CURRENT_DATE as cur
+          FROM Services as sr
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          GROUP BY sr.Id
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM Services as sr
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      res.json({
+        success: 1,
+        data,
+        total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
   async getBookingSlots(req, res) {
     try {
       const payload = req.query;

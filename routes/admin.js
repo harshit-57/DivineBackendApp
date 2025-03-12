@@ -106,6 +106,18 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.createCategory
     );
+
+    this.router.post(
+      "/create-service",
+      AdminMiddleware,
+      AdminController.createService
+    );
+
+    this.router.post(
+      "/update-service",
+      AdminMiddleware,
+      AdminController.updateService
+    );
   };
 }
 
