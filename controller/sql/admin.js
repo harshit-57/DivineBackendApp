@@ -1962,6 +1962,249 @@ class AdminController {
       });
     }
   }
+
+  async createSlots(req, res) {
+    try {
+      const { startDate, endDate, slots } = req.body;
+
+      if (!startDate || !endDate || !slots?.length) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: startDate, endDate, slots",
+        });
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const today = new Date(new Date().toLocaleDateString());
+
+      if (start < today)
+        return res.status(400).json({
+          success: 0,
+          message: "Start date cannot be in the past",
+        });
+      if (start > end)
+        return res.status(400).json({
+          success: 0,
+          message: "Invalid date range",
+        });
+
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+      for (const slot of slots) {
+        if (
+          !timeRegex.test(slot.startTime) ||
+          !timeRegex.test(slot.endTime) ||
+          slot.startTime >= slot.endTime
+        ) {
+          return res.status(400).json({
+            success: 0,
+            message: `Invalid slot times on slot: ${slot.startTime} - ${slot.endTime}`,
+          });
+        }
+      }
+
+      const dates = [];
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(d.toISOString().split("T")[0]);
+      }
+
+      const [existing] = await pool.execute(
+        "SELECT DATE_FORMAT(Date, '%Y-%m-%d') as Date, StartTime, EndTime FROM BookingSlots WHERE Date BETWEEN ? AND ?",
+        [startDate, endDate]
+      );
+
+      const newSlots = dates.flatMap((date) =>
+        slots.map((slot) => ({
+          Date: date,
+          StartTime: slot.startTime,
+          EndTime: slot.endTime,
+          Status: 1,
+        }))
+      );
+
+      for (const newSlot of newSlots) {
+        if (
+          existing.some(
+            (ex) =>
+              ex.Date == newSlot.Date &&
+              ex.StartTime < newSlot.EndTime &&
+              newSlot.StartTime < ex.EndTime
+          )
+        ) {
+          return res.status(400).json({
+            success: 0,
+            message: `Slot conflict on ${newSlot.Date} between ${newSlot.StartTime} - ${newSlot.EndTime}`,
+          });
+        }
+      }
+
+      const values = newSlots.map((s) => [
+        s.Date,
+        s.StartTime,
+        s.EndTime,
+        s.Status,
+      ]);
+      const placeholders = newSlots.map(() => "(?, ?, ?, ?)").join(", ");
+      const flatValues = values.flat();
+
+      const [result] = await pool.execute(
+        `INSERT INTO BookingSlots (Date, StartTime, EndTime, Status) VALUES ${placeholders}`,
+        flatValues
+      );
+
+      return res.json({
+        success: 1,
+        message: "Booking Slots created",
+        data: { count: result.affectedRows },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async updateSlot(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [slot] = await pool.execute(
+        `SELECT * FROM BookingSlots WHERE Id = ?`,
+        [payload.id]
+      );
+      if (!slot.length) {
+        return res.status(404).json({
+          success: 0,
+          message: "Slot not found",
+        });
+      }
+
+      slot = slot[0];
+
+      const updateDetails = {};
+
+      if (payload.date) updateDetails.Date = new Date(payload.date);
+      if (payload.startTime) updateDetails.StartTime = payload.startTime;
+      if (payload.endTime) updateDetails.EndTime = payload.endTime;
+      if (payload.status) updateDetails.Status = payload.status;
+
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+
+      const checkStartTime = payload.startTime || slot.StartTime;
+      const checkEndTime = payload.endTime || slot.EndTime;
+      const checkDate = payload.date || slot.Date;
+
+      if (
+        !timeRegex.test(checkStartTime) ||
+        !timeRegex.test(checkEndTime) ||
+        checkStartTime >= checkEndTime
+      ) {
+        return res.status(400).json({
+          success: 0,
+          message: `Invalid slot times on slot: ${checkStartTime} - ${checkEndTime}`,
+        });
+      }
+
+      const [existing] = await pool.execute(
+        "SELECT DATE_FORMAT(Date, '%Y-%m-%d') as Date, StartTime, EndTime FROM BookingSlots WHERE Date = ? AND Id != ?",
+        [checkDate, payload.id]
+      );
+
+      const newSlot = {
+        Date: checkDate,
+        StartTime: checkStartTime,
+        EndTime: checkEndTime,
+      };
+
+      for (const ex of existing) {
+        if (
+          ex.Date == newSlot.Date &&
+          ex.StartTime < newSlot.EndTime &&
+          newSlot.StartTime < ex.EndTime
+        ) {
+          return res.status(400).json({
+            success: 0,
+            message: `Slot conflict on ${newSlot.Date} between ${newSlot.StartTime} - ${newSlot.EndTime}`,
+          });
+        }
+      }
+
+      const updatedService = await pool.execute(
+        `UPDATE BookingSlots SET ${Object.keys(updateDetails)
+          ?.map((key) => `${key} = ?`)
+          .join(", ")} WHERE Id = ?`,
+        [...Object.values(updateDetails), payload?.id]
+      );
+
+      if (!updatedService)
+        return res.json({
+          success: 0,
+          message: "Unable to update slot",
+        });
+
+      return res.json({
+        success: 1,
+        message: "Slot updated successfully",
+        data: {
+          id: payload?.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
+
+  async deleteSlot(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      let [slot] = await pool.execute(
+        `SELECT * FROM BookingSlots WHERE Id = ?`,
+        [payload.id]
+      );
+
+      slot = slot[0];
+
+      const deleteSlot = await pool.execute(
+        `DELETE FROM BookingSlots WHERE Id = ?`,
+        [payload?.id]
+      );
+      if (!deleteSlot)
+        return res.json({
+          success: 0,
+          message: "Unable to delete slot",
+        });
+
+      return res.json({
+        success: 1,
+        message: "Slot deleted successfully",
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error,
+      });
+    }
+  }
 }
 export default new AdminController();
 

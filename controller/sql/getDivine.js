@@ -776,8 +776,7 @@ class GetDivineController {
   async getBookingSlots(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
-
+      let filters = [`sl.Status = "1"`];
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
       const sort = payload?.sort || "ASC";
@@ -788,7 +787,8 @@ class GetDivineController {
       }
 
       if (payload?.date) {
-        filters.push(`sl.Date = "${payload.date}"`);
+        const date = payload.date;
+        filters.push(`DATE(sl.Date) = DATE('${date}')`);
       }
 
       if (payload?.status) {
