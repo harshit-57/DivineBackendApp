@@ -2205,6 +2205,65 @@ class AdminController {
       });
     }
   }
+
+  async getBookings(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || "book.CreatedAt";
+
+      if (payload?.id) {
+        filters.push(`book.Id = "${payload.id}"`);
+      }
+
+      if (payload?.date) {
+        filters.push(`DATE(sl.Date) = DATE('${payload.date}')`);
+      }
+
+      if (payload?.search) {
+        filters.push(
+          `(book.Name LIKE "%${payload.search}%" OR book.Service LIKE "%${payload.search}%")`
+        );
+      }
+
+      if (payload?.status) {
+        filters.push(
+          `book.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
+
+      let [data] = await pool.execute(
+        `SELECT book.* , sl.Date, sl.StartTime, sl.EndTime
+            FROM Bookings as book
+             JOIN BookingSlots as sl ON sl.Id = book.SlotId
+            ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+            ORDER BY ${sortBy} ${sort} 
+            LIMIT ${limit} OFFSET ${offset};`
+      );
+      let [count] = await pool.execute(
+        `SELECT COUNT(*) as total FROM Bookings as book
+            JOIN BookingSlots as sl ON sl.Id = book.SlotId
+            ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        message: "Bookings fetched successfully",
+        data,
+        total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
 }
 export default new AdminController();
 

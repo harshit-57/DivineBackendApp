@@ -134,6 +134,12 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.deleteSlot
     );
+
+    this.router.get(
+      "/get-bookings",
+      AdminMiddleware,
+      AdminController.getBookings
+    );
   };
 }
 

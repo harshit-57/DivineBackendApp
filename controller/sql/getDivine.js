@@ -787,8 +787,7 @@ class GetDivineController {
       }
 
       if (payload?.date) {
-        const date = payload.date;
-        filters.push(`DATE(sl.Date) = DATE('${date}')`);
+        filters.push(`DATE(sl.Date) = DATE('${payload.date}')`);
       }
 
       if (payload?.status) {
