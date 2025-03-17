@@ -44,5 +44,6 @@ export default class GetDivineRoutes {
     this.router.get("/getServices", GetDivineController.getServices);
 
     this.router.get("/getBookingSlots", GetDivineController.getBookingSlots);
+    this.router.post("/createBooking", GetDivineController.createBooking);
   };
 }

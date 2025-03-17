@@ -792,18 +792,40 @@ class GetDivineController {
       }
 
       if (payload?.status) {
-        filters.push(`sl.Status = "${payload.status}"`);
+        filters.push(
+          `sl.Status IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      }
+
+      if (payload?.isAvailable) {
+        filters.push(`(b.Status IS NULL OR b.Status NOT IN (0, 1))`);
+      }
+
+      if (payload?.bookingStatus) {
+        filters.push(
+          `b.Status IN (${payload.bookingStatus
+            ?.split(",")
+            ?.map((item) => `"${item}"`)
+            ?.join(",")})`
+        );
+      } else if (payload?.bookingStatus == null) {
+        filters.push(`b.Status IS NULL`);
       }
 
       let [data] = await pool.execute(
-        `SELECT sl.* 
+        `SELECT sl.* , b.Id as BookingId, b.Status as BookingStatus
           FROM BookingSlots as sl
+          LEFT JOIN Bookings as b ON b.SlotId = sl.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
       let [count] = await pool.execute(
         `SELECT COUNT(*) as total FROM BookingSlots as sl
+         LEFT JOIN Bookings as b ON b.SlotId = sl.Id
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -815,6 +837,86 @@ class GetDivineController {
       });
       // let [data] = await pool.execute(`SELECT * FROM Testimonials;`);
       // res.json(data);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async createBooking(req, res) {
+    try {
+      const payload = req.body;
+      const {
+        service,
+        slot: slotId,
+        name,
+        email,
+        phone,
+        address,
+        dob,
+        state,
+        time,
+        gender,
+        consultationType,
+        price,
+      } = payload;
+
+      let slot = await pool.execute(
+        `SELECT slots.*, bookings.Status as bookingStatus
+         FROM BookingSlots slots 
+         LEFT JOIN Bookings bookings ON bookings.SlotId = slots.Id
+         WHERE slots.Id = "${slotId}"`
+      );
+
+      if (slot[0].length === 0) {
+        return res.json({
+          success: 0,
+          message: "Slot not found",
+        });
+      }
+
+      slot = slot[0][0];
+
+      if (slot.bookingStatus == "1" || slot.bookingStatus == "0") {
+        return res.json({
+          success: 0,
+          message: "Slot is already booked",
+        });
+      }
+
+      let [data] = await pool.execute(
+        `INSERT INTO Bookings 
+        (SlotId, Service, Name, Email, Phone, Address, DOB, State, Time, Gender, ConsultType, Price, Status)
+        VALUES 
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          slotId,
+          service,
+          name,
+          email,
+          phone,
+          address,
+          dob,
+          state,
+          time,
+          gender,
+          consultationType,
+          price,
+          "0",
+        ]
+      );
+
+      // await pool.execute(
+      //     `UPDATE BookingSlots SET Status = "0" WHERE Id = "${slotId}"`
+      //   );
+
+      return res.json({
+        success: 1,
+        message: "Booking created successfully",
+        data: {
+          bookingId: data.insertId,
+        },
+      });
     } catch (error) {
       console.error(error);
       res.status(500).json({ status: false, message: error?.message });
