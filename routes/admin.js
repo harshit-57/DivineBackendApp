@@ -118,6 +118,28 @@ export default class AdminRoutes {
       AdminMiddleware,
       AdminController.updateService
     );
+
+    this.router.post(
+      "/create-slots",
+      AdminMiddleware,
+      AdminController.createSlots
+    );
+    this.router.post(
+      "/update-slot",
+      AdminMiddleware,
+      AdminController.updateSlot
+    );
+    this.router.post(
+      "/delete-slot",
+      AdminMiddleware,
+      AdminController.deleteSlot
+    );
+
+    this.router.get(
+      "/get-bookings",
+      AdminMiddleware,
+      AdminController.getBookings
+    );
   };
 }
 
