@@ -1,4 +1,5 @@
 import { pool } from "../../db.js";
+import Rajorpay from "../../utils/payment.js";
 
 class GetDivineController {
   async getBlogCategories(req, res) {
@@ -779,7 +780,7 @@ class GetDivineController {
       let filters = [`sl.Status = "1"`];
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
-      const sort = payload?.sort || "ASC";
+      const sort = payload?.sort || "DESC";
       const sortBy = payload?.sortBy || "sl.Date";
 
       if (payload?.id) {
@@ -883,11 +884,31 @@ class GetDivineController {
         });
       }
 
+      const order = await Rajorpay.orders.create({
+        amount: price * 100,
+        currency: "INR",
+        receipt: `receipt#${new Date().getTime()}`,
+        notes: {
+          slotId,
+          service,
+          name,
+          email,
+          phone,
+          address,
+          dob,
+          state,
+          time,
+          gender,
+          consultationType,
+          price,
+        },
+      });
+
       let [data] = await pool.execute(
         `INSERT INTO Bookings 
-        (SlotId, Service, Name, Email, Phone, Address, DOB, State, Time, Gender, ConsultType, Price, Status)
+        (SlotId, Service, Name, Email, Phone, Address, DOB, State, Time, Gender, ConsultType, Price, OrderId, Status)
         VALUES 
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           slotId,
           service,
@@ -901,6 +922,7 @@ class GetDivineController {
           gender,
           consultationType,
           price,
+          order?.id,
           "0",
         ]
       );
@@ -911,10 +933,56 @@ class GetDivineController {
 
       return res.json({
         success: 1,
-        message: "Booking created successfully",
+        message: "Payment initiated successfully",
         data: {
           bookingId: data.insertId,
+          payment: order,
+          paymentKey: process.env.RAZORPAY_KEY_ID,
         },
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async completeBooking(req, res) {
+    try {
+      const payload = req.body;
+      const { bookingId, paymentId, orderId, status } = payload;
+
+      let [booking] = await pool.execute(
+        `SELECT * FROM
+        Bookings WHERE Id = "${bookingId}"`
+      );
+
+      booking = booking[0];
+
+      if (!booking) {
+        return res.json({
+          success: 0,
+          message: "Booking details not found",
+        });
+      }
+
+      if (booking?.Status == "1") {
+        return res.json({
+          success: 0,
+          message: "Slot is already booked",
+        });
+      }
+
+      await pool.execute(
+        `UPDATE Bookings SET Status = ${
+          status ? String(status) : "1"
+        }, PaymentId = "${paymentId || ""}"
+         WHERE Id = "${bookingId}"`
+      );
+
+      return res.json({
+        success: 1,
+        message:
+          "Payment processed successfully. Your slot has been confirmed.",
       });
     } catch (error) {
       console.error(error);
