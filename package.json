@@ -27,7 +27,8 @@
     "mysql": "^2.18.1",
     "mysql2": "^3.12.0",
     "nodemon": "^3.1.9",
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "razorpay": "^2.9.6"
   },
   "devDependencies": {
     "@types/pg": "^8.11.11",
