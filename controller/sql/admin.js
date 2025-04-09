@@ -280,7 +280,7 @@ class AdminController {
         Buy_Text, 
         Regular_Price, 
         Sale_Price, 
-        Focus_keyphrase,
+        Focus_Keyphrase,
         Meta_Title, 
         Meta_SiteName, 
         Meta_Desc,
