@@ -761,10 +761,11 @@ class GetDivineController {
       }
 
       const { rows: data } = await pool.query(
-        `SELECT sr.*, CURRENT_DATE as cur
+        `SELECT sr.*, sr2."Name" as "ParentName", sr2."Slug" as "ParentSlug"
           FROM "Services" as sr
+          LEFT JOIN "Services" as sr2 ON sr2."Id" = sr."ParentId"
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
-          GROUP BY sr."Id"
+          GROUP BY sr."Id", sr2."Id"
           ORDER BY ${sortBy} ${sort} 
           LIMIT ${limit} OFFSET ${offset};`
       );
