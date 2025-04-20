@@ -998,6 +998,169 @@ class GetDivineController {
       res.status(500).json({ status: false, message: error?.message });
     }
   }
+
+  async updateImagesPath(req, res) {
+    try {
+      const API_URL = process.env.API_URL;
+
+      const type = req.query.type;
+
+      switch (type) {
+        case "course":
+          const { rows: courses } = await pool.query(
+            `SELECT "Id", "ImageUrl" FROM "ProductMappingImage"`
+          );
+          courses.forEach(async (item) => {
+            const imageUrl = item.ImageUrl;
+            if (
+              imageUrl &&
+              imageUrl.includes("https://i0.wp.com/acharyaganesh.com")
+            ) {
+              const newImageUrl = imageUrl.replace(
+                "https://i0.wp.com/acharyaganesh.com",
+                API_URL
+              );
+              console.log("Courses Image: ", newImageUrl, item.Id);
+              await pool.query(
+                `UPDATE "ProductMappingImage" SET "ImageUrl" = $1 WHERE "Id" = $2`,
+                [newImageUrl, item.Id]
+              );
+            }
+          });
+          break;
+        case "blog":
+          const { rows: blogs } = await pool.query(
+            `SELECT "Image" FROM "Blogs"`
+          );
+
+          blogs.forEach(async (item) => {
+            const image = item.Image;
+            if (
+              image &&
+              image.includes("https://i0.wp.com/acharyaganesh.com")
+            ) {
+              const newImageUrl = image.replace(
+                "https://i0.wp.com/acharyaganesh.com",
+                API_URL
+              );
+              console.log("Blog Image: ", newImageUrl);
+              // await pool.query(
+              //   `UPDATE "Blogs" SET "Image" = $1 WHERE "ID" = $2`,
+              //   [newImageUrl, item.ID]
+              // );
+            }
+          });
+          break;
+
+        case "spirituality":
+          const { rows: spirituality } = await pool.query(
+            `SELECT "Image" FROM "Spiritualities"`
+          );
+          spirituality.forEach(async (item) => {
+            const image = item.Image;
+            if (
+              image &&
+              image.includes("https://i0.wp.com/acharyaganesh.com")
+            ) {
+              const newImageUrl = image.replace(
+                "https://i0.wp.com/acharyaganesh.com",
+                API_URL
+              );
+              console.log("Spirituality Image: ", newImageUrl);
+              // await pool.query(
+              //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "ID" = $2`,
+              //   [newImageUrl, item.ID]
+              // );
+            }
+          });
+          break;
+
+        case "service":
+          const { rows: services } = await pool.query(
+            `SELECT "Image" FROM "Services"`
+          );
+          services.forEach(async (item) => {
+            const image = item.Image;
+            if (
+              image &&
+              image.includes("https://i0.wp.com/acharyaganesh.com")
+            ) {
+              const newImageUrl = image.replace(
+                "https://i0.wp.com/acharyaganesh.com",
+                API_URL
+              );
+              console.log("Service Image: ", newImageUrl);
+              // await pool.query(
+              //   `UPDATE "Services" SET "Image" = $1 WHERE "ID" = $2`,
+              //   [newImageUrl, item.ID]
+              // );
+            }
+          });
+          break;
+
+        case "webstory":
+          const { rows: webstories } = await pool.query(
+            `SELECT "CoverImageUrl" FROM "WebStories"`
+          );
+          webstories.forEach(async (item) => {
+            const image = item.CoverImageUrl;
+            if (
+              image &&
+              image.includes("https://i0.wp.com/acharyaganesh.com")
+            ) {
+              const newImageUrl = image.replace(
+                "https://i0.wp.com/acharyaganesh.com",
+                API_URL
+              );
+              console.log("WebStory Image: ", newImageUrl);
+              // await pool.query(
+              //   `UPDATE "WebStories" SET "CoverImageUrl" = $1 WHERE "ID" = $2`,
+              //   [newImageUrl, item.ID]
+              // );
+            }
+          });
+
+          const { rows: WebStoryImage } = await pool.query(
+            `SELECT "WebStoryImageUrl" FROM "WebStoryImage"`
+          );
+
+          WebStoryImage.forEach(async (item) => {
+            const image = item.WebStoryImageUrl;
+            if (
+              image &&
+              image.includes("https://i0.wp.com/acharyaganesh.com")
+            ) {
+              const newImageUrl = image.replace(
+                "https://i0.wp.com/acharyaganesh.com",
+                API_URL
+              );
+              console.log("WebStoryImage Image: ", newImageUrl);
+              // await pool.query(
+              //   `UPDATE "WebStoryImage" SET "WebStoryImageUrl" = $1 WHERE "ID" = $2`,
+              //   [newImageUrl, item.ID]
+              // );
+            }
+          });
+          break;
+
+        default:
+          return res.json({
+            success: 0,
+            message: "Invalid type",
+          });
+      }
+
+      console.log("Image path updated successfully");
+
+      return res.json({
+        success: 1,
+        message: "Image path updated successfully",
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
 }
 
 export default new GetDivineController();
