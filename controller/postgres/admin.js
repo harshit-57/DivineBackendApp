@@ -285,11 +285,11 @@ class AdminController {
           "Slug", 
           "ProductDescription", 
           "ShortDescription", 
-          "ProductUrl", 
+          "ProductURL", 
           "Buy_Text", 
           "Regular_Price", 
           "Sale_Price", 
-          "Focus_keyphrase",
+          "Focus_Keyphrase",
           "Meta_Title", 
           "Meta_SiteName", 
           "Meta_Desc",
@@ -444,14 +444,14 @@ class AdminController {
         updateDetails["ProductDescription"] = payload.description;
       if (payload.shortDescription !== undefined)
         updateDetails["ShortDescription"] = payload.shortDescription;
-      if (payload.productUrl) updateDetails["ProductUrl"] = payload.productUrl;
+      if (payload.productUrl) updateDetails["ProductURL"] = payload.productUrl;
       if (payload.buyText) updateDetails["Buy_Text"] = payload.buyText;
       if (payload.regularPrice)
         updateDetails["Regular_Price"] = payload.regularPrice;
       if (payload.salePrice !== undefined)
         updateDetails["Sale_Price"] = payload.salePrice;
       if (payload.focusKeyphrase !== undefined)
-        updateDetails["Focus_keyphrase"] = payload.focusKeyphrase;
+        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
         updateDetails["Meta_Title"] = payload.metaTitle;
       if (payload.metaSiteName !== undefined)
@@ -602,7 +602,7 @@ class AdminController {
           "ShortDescription",
           "Image",
           "ImageAlt",
-          "Focus_keyphrase",
+          "Focus_Keyphrase",
           "Meta_Title", 
           "Meta_SiteName", 
           "Meta_Desc",
@@ -754,7 +754,7 @@ class AdminController {
       if (payload.imageAlt !== undefined)
         updateDetails["ImageAlt"] = payload.imageAlt;
       if (payload.focusKeyphrase !== undefined)
-        updateDetails["Focus_keyphrase"] = payload.focusKeyphrase;
+        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
         updateDetails["Meta_Title"] = payload.metaTitle;
       if (payload.metaSiteName !== undefined)
@@ -899,7 +899,7 @@ class AdminController {
           "Description", 
           "Image",
           "ImageAlt",
-          "Focus_keyphrase",
+          "Focus_Keyphrase",
           "Meta_Title", 
           "Meta_SiteName", 
           "Meta_Desc",
@@ -1046,7 +1046,7 @@ class AdminController {
       if (payload.imageAlt !== undefined)
         updateDetails["ImageAlt"] = payload.imageAlt;
       if (payload.focusKeyphrase !== undefined)
-        updateDetails["Focus_keyphrase"] = payload.focusKeyphrase;
+        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
         updateDetails["Meta_Title"] = payload.metaTitle;
       if (payload.metaSiteName !== undefined)
@@ -1190,7 +1190,7 @@ class AdminController {
           "Slug", 
           "Description",
           "PublishedOn", 
-          "Focus_keyphrase",
+          "Focus_Keyphrase",
           "Meta_Title", 
           "Meta_SiteName", 
           "Meta_Desc",
@@ -1293,7 +1293,7 @@ class AdminController {
           payload.publishedOn
         ).toISOString();
       if (payload.focusKeyphrase !== undefined)
-        updateDetails["Focus_keyphrase"] = payload.focusKeyphrase;
+        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
         updateDetails["Meta_Title"] = payload.metaTitle;
       if (payload.metaSiteName !== undefined)
@@ -1899,6 +1899,524 @@ class AdminController {
       });
     }
   }
+  async createService(req, res) {
+    try {
+      let payload = req.body || {};
+
+      if (!payload.title || !payload.description) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields",
+        });
+      }
+
+      payload.slug = await generatedSlug(payload.title, "Services");
+
+      const publishedOn =
+        new Date(payload.publishedOn) > new Date()
+          ? `'${new Date(payload.publishedOn).toISOString()}'`
+          : `'${new Date().toISOString()}'`;
+
+      console.log(payload);
+
+      const { rows: service } = await pool.query(
+        `INSERT INTO "Services" 
+        (
+          "Name",
+          "Slug", 
+          "Description", 
+          "Title", 
+          "SubTitle",
+          "Image",
+          "ImageAlt",
+          "Link",
+          "LinkText",
+          "Focus_Keyphrase",
+          "Meta_Title", 
+          "Meta_SiteName", 
+          "Meta_Desc",
+          "PublishedOn", 
+          "Status",
+          "ParentId"
+        ) 
+        VALUES (
+          '${payload.title}',
+          '${payload.slug}',
+          '${payload.description}',
+          ${payload.header ? `'${payload.header}'` : "NULL"},
+          ${payload.subHeader ? `'${payload.subHeader}'` : "NULL"},
+          ${payload.image ? `'${payload.image}'` : "NULL"},
+          ${payload.imageAlt ? `'${payload.imageAlt}'` : "NULL"},
+          ${payload.link ? `'${payload.link}'` : "NULL"},
+          ${payload.linkText ? `'${payload.linkText}'` : "NULL"},
+          ${payload.focusKeyphrase ? `'${payload.focusKeyphrase}'` : "NULL"},
+          '${payload.metaTitle || payload.title}',
+          '${
+            payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes"
+          }',
+          '${payload.metaDescription || ""}',
+          ${publishedOn},
+          ${payload.Status || 1},
+          ${payload.parentId ? `'${payload.parentId}'` : "NULL"}
+        )
+        RETURNING "Id"`
+      );
+
+      if (!service.length) {
+        return res.status(500).json({
+          success: 0,
+          message: "Unable to create service",
+        });
+      }
+
+      const serviceId = service[0].Id;
+
+      return res.json({
+        success: 1,
+        message: "Service created successfully",
+        data: {
+          slug: payload.slug,
+          id: serviceId,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateService(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      const { rows: service } = await pool.query(
+        `SELECT * FROM "Services" WHERE "Id" = '${payload.id}'`
+      );
+
+      if (!service.length) {
+        return res.status(404).json({
+          success: 0,
+          message: "Service not found",
+        });
+      }
+
+      const existingService = service[0];
+
+      if (payload?.slug && existingService.Slug !== payload?.slug) {
+        const { rows: existSlug } = await pool.query(
+          `SELECT "Id" FROM "Services" WHERE "Slug" = '${payload.slug}'`
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
+      const updateDetails = {};
+
+      if (payload.title) updateDetails["Name"] = `'${payload.title}'`;
+      if (payload.slug) updateDetails["Slug"] = `'${payload.slug}'`;
+      if (payload.description)
+        updateDetails["Description"] = `'${payload.description}'`;
+      if (payload.header) updateDetails["Title"] = `'${payload.header}'`;
+      if (payload.subHeader !== undefined)
+        updateDetails["SubTitle"] = payload.subHeader
+          ? `'${payload.subHeader}'`
+          : "NULL";
+      if (payload.image !== undefined)
+        updateDetails["Image"] = payload.image ? `'${payload.image}'` : "NULL";
+      if (payload.imageAlt !== undefined)
+        updateDetails["ImageAlt"] = payload.imageAlt
+          ? `'${payload.imageAlt}'`
+          : "NULL";
+      if (payload.link !== undefined)
+        updateDetails["Link"] = payload.link ? `'${payload.link}'` : "NULL";
+      if (payload.linkText !== undefined)
+        updateDetails["LinkText"] = payload.linkText
+          ? `'${payload.linkText}'`
+          : "NULL";
+      if (payload.focusKeyphrase !== undefined)
+        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase
+          ? `'${payload.focusKeyphrase}'`
+          : "NULL";
+      if (payload.metaTitle !== undefined)
+        updateDetails["Meta_Title"] = `'${payload.metaTitle}'`;
+      if (payload.metaSiteName !== undefined)
+        updateDetails["Meta_SiteName"] = `'${payload.metaSiteName}'`;
+      if (payload.metaDescription !== undefined)
+        updateDetails["Meta_Desc"] = `'${payload.metaDescription}'`;
+      if (
+        payload.publishedOn &&
+        new Date(payload.publishedOn).toISOString() !==
+          new Date(existingService.PublishedOn).toISOString()
+      )
+        updateDetails["PublishedOn"] = `'${new Date(
+          payload.publishedOn
+        ).toISOString()}'`;
+      if (payload.status !== undefined)
+        updateDetails["Status"] = `${payload.status}`;
+      if (payload.deletedOn)
+        updateDetails["DeletedOn"] = `'${new Date(
+          payload.deletedOn
+        ).toISOString()}'`;
+      if (payload.parentId !== undefined)
+        updateDetails["ParentId"] = payload.parentId
+          ? `'${payload.parentId}'`
+          : "NULL";
+
+      if (Object.keys(updateDetails).length > 0) {
+        await pool.query(
+          `UPDATE "Services" SET 
+           ${Object.keys(updateDetails)
+             .map((key) => `"${key}" = ${updateDetails[key]}`)
+             .join(", ")}
+           WHERE "Id" = '${payload.id}'`
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Service updated successfully",
+        data: {
+          slug: payload.slug || existingService.Slug,
+          id: payload.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error.message,
+      });
+    }
+  }
+
+  async createSlots(req, res) {
+    try {
+      const { startDate, endDate, slots } = req.body;
+
+      if (!startDate || !endDate || !slots?.length) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: startDate, endDate, slots",
+        });
+      }
+
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      const today = new Date(new Date().toLocaleDateString());
+
+      if (start < today) {
+        return res.status(400).json({
+          success: 0,
+          message: "Start date cannot be in the past",
+        });
+      }
+      if (start > end) {
+        return res.status(400).json({
+          success: 0,
+          message: "Invalid date range",
+        });
+      }
+
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+      for (const slot of slots) {
+        if (
+          !timeRegex.test(slot.startTime) ||
+          !timeRegex.test(slot.endTime) ||
+          slot.startTime >= slot.endTime
+        ) {
+          return res.status(400).json({
+            success: 0,
+            message: `Invalid slot times on slot: ${slot.startTime} - ${slot.endTime}`,
+          });
+        }
+      }
+
+      const dates = [];
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(d.toISOString().split("T")[0]);
+      }
+
+      const { rows: existing } = await pool.query(
+        `SELECT TO_CHAR("Date", 'YYYY-MM-DD') as "Date", "StartTime", "EndTime" 
+         FROM "BookingSlots" 
+         WHERE "Date" BETWEEN '${startDate}' AND '${endDate}'`
+      );
+
+      const newSlots = dates.flatMap((date) =>
+        slots.map((slot) => ({
+          Date: date,
+          StartTime: slot.startTime,
+          EndTime: slot.endTime,
+          Status: 1,
+        }))
+      );
+
+      for (const newSlot of newSlots) {
+        if (
+          existing.some(
+            (ex) =>
+              ex.Date === newSlot.Date &&
+              ex.StartTime < newSlot.EndTime &&
+              newSlot.StartTime < ex.EndTime
+          )
+        ) {
+          return res.status(400).json({
+            success: 0,
+            message: `Slot conflict on ${newSlot.Date} between ${newSlot.StartTime} - ${newSlot.EndTime}`,
+          });
+        }
+      }
+
+      const values = newSlots
+        .map(
+          (s) => `('${s.Date}', '${s.StartTime}', '${s.EndTime}', ${s.Status})`
+        )
+        .join(", ");
+
+      const { rowCount } = await pool.query(
+        `INSERT INTO "BookingSlots" ("Date", "StartTime", "EndTime", "Status") 
+         VALUES ${values}`
+      );
+
+      return res.json({
+        success: 1,
+        message: "Booking Slots created",
+        data: { count: rowCount },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error.message,
+      });
+    }
+  }
+
+  async updateSlot(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      const { rows: slot } = await pool.query(
+        `SELECT * FROM "BookingSlots" WHERE "Id" = '${payload.id}'`
+      );
+      if (!slot.length) {
+        return res.status(404).json({
+          success: 0,
+          message: "Slot not found",
+        });
+      }
+
+      const existingSlot = slot[0];
+
+      const updateDetails = {};
+
+      if (payload.date)
+        updateDetails["Date"] = `'${
+          new Date(payload.date).toISOString().split("T")[0]
+        }'`;
+      if (payload.startTime)
+        updateDetails["StartTime"] = `'${payload.startTime}'`;
+      if (payload.endTime) updateDetails["EndTime"] = `'${payload.endTime}'`;
+      if (payload.status !== undefined)
+        updateDetails["Status"] = `${payload.status}`;
+
+      const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]$/;
+
+      const checkStartTime = payload.startTime || existingSlot.StartTime;
+      const checkEndTime = payload.endTime || existingSlot.EndTime;
+      const checkDate = payload.date
+        ? new Date(payload.date).toISOString().split("T")[0]
+        : existingSlot.Date instanceof Date
+        ? existingSlot.Date.toISOString().split("T")[0]
+        : existingSlot.Date;
+
+      if (
+        !timeRegex.test(checkStartTime) ||
+        !timeRegex.test(checkEndTime) ||
+        checkStartTime >= checkEndTime
+      ) {
+        return res.status(400).json({
+          success: 0,
+          message: `Invalid slot times on slot: ${checkStartTime} - ${checkEndTime}`,
+        });
+      }
+
+      const { rows: existing } = await pool.query(
+        `SELECT TO_CHAR("Date", 'YYYY-MM-DD') as "Date", "StartTime", "EndTime" 
+         FROM "BookingSlots" 
+         WHERE "Date" = DATE('${checkDate}') AND "Id" != '${payload.id}'`
+      );
+
+      const newSlot = {
+        Date: checkDate,
+        StartTime: checkStartTime,
+        EndTime: checkEndTime,
+      };
+
+      for (const ex of existing) {
+        if (
+          ex.Date === newSlot.Date &&
+          ex.StartTime < newSlot.EndTime &&
+          newSlot.StartTime < ex.EndTime
+        ) {
+          return res.status(400).json({
+            success: 0,
+            message: `Slot conflict on ${newSlot.Date} between ${newSlot.StartTime} - ${newSlot.EndTime}`,
+          });
+        }
+      }
+
+      if (Object.keys(updateDetails).length > 0) {
+        await pool.query(
+          `UPDATE "BookingSlots" SET 
+           ${Object.keys(updateDetails)
+             .map((key) => `"${key}" = ${updateDetails[key]}`)
+             .join(", ")}
+           WHERE "Id" = '${payload.id}'`
+        );
+      }
+
+      return res.json({
+        success: 1,
+        message: "Slot updated successfully",
+        data: {
+          id: payload.id,
+        },
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error.message,
+      });
+    }
+  }
+
+  async deleteSlot(req, res) {
+    try {
+      let payload = req.body || {};
+      if (!payload.id) {
+        return res.status(400).json({
+          success: 0,
+          message: "Missing required fields: id",
+        });
+      }
+
+      const { rows: slot } = await pool.query(
+        `SELECT * FROM "BookingSlots" WHERE "Id" = '${payload.id}'`
+      );
+
+      if (!slot.length) {
+        return res.status(404).json({
+          success: 0,
+          message: "Slot not found",
+        });
+      }
+
+      const { rowCount } = await pool.query(
+        `DELETE FROM "BookingSlots" WHERE "Id" = '${payload.id}'`
+      );
+
+      if (!rowCount) {
+        return res.json({
+          success: 0,
+          message: "Unable to delete slot",
+        });
+      }
+
+      return res.json({
+        success: 1,
+        message: "Slot deleted successfully",
+      });
+    } catch (error) {
+      console.log(error);
+      return res.status(500).json({
+        success: 0,
+        message: error.message,
+      });
+    }
+  }
+
+  async getBookings(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "DESC";
+      const sortBy = payload?.sortBy || `book."CreatedAt"`;
+
+      if (payload?.id) {
+        filters.push(`book."Id" = '${payload.id}'`);
+      }
+
+      if (payload?.date) {
+        filters.push(`DATE(sl."Date") = DATE('${payload.date}')`);
+      }
+
+      if (payload?.search) {
+        filters.push(
+          `(book."Name" ILIKE '%${payload.search}%' OR book."Service" ILIKE '%${payload.search}%')`
+        );
+      }
+
+      if (payload?.status) {
+        filters.push(
+          `book."Status" IN (${payload.status
+            .split(",")
+            .map((item) => `'${item}'`)
+            .join(",")})`
+        );
+      }
+
+      const { rows: data } = await pool.query(
+        `SELECT book.*, sl."Date", sl."StartTime", sl."EndTime"
+         FROM "Bookings" as book
+         JOIN "BookingSlots" as sl ON sl."Id" = book."SlotId"
+         ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+         ORDER BY ${sortBy} ${sort} 
+         LIMIT ${limit} OFFSET ${offset}`
+      );
+
+      const { rows: count } = await pool.query(
+        `SELECT COUNT(*) as total 
+         FROM "Bookings" as book
+         JOIN "BookingSlots" as sl ON sl."Id" = book."SlotId"
+         ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}`
+      );
+
+      const total = count[0].total;
+      return res.json({
+        success: 1,
+        message: "Bookings fetched successfully",
+        data,
+        total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error.message });
+    }
+  }
 }
 
 export default new AdminController();
@@ -1913,7 +2431,7 @@ export const generatedSlug = async (Title, Table) => {
       .toLowerCase()
       .replace(/[^\w ]+/g, "")
       .replace(/ +/g, "-");
-    const { rows: data } = await pool.query(
+    var { rows: data } = await pool.query(
       `SELECT * FROM "${Table}" WHERE "Slug" = '${slug}'`
     );
     if (data?.length) {
