@@ -1021,16 +1021,16 @@ class GetDivineController {
                 API_URL
               );
               console.log("Courses Image: ", newImageUrl, item.Id);
-              await pool.query(
-                `UPDATE "ProductMappingImage" SET "ImageUrl" = $1 WHERE "Id" = $2`,
-                [newImageUrl, item.Id]
-              );
+              // await pool.query(
+              //   `UPDATE "ProductMappingImage" SET "ImageUrl" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
+              // );
             }
           });
           break;
         case "blog":
           const { rows: blogs } = await pool.query(
-            `SELECT "Image" FROM "Blogs"`
+            `SELECT "Id", "Image" FROM "Blogs"`
           );
 
           blogs.forEach(async (item) => {
@@ -1045,8 +1045,8 @@ class GetDivineController {
               );
               console.log("Blog Image: ", newImageUrl);
               // await pool.query(
-              //   `UPDATE "Blogs" SET "Image" = $1 WHERE "ID" = $2`,
-              //   [newImageUrl, item.ID]
+              //   `UPDATE "Blogs" SET "Image" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
               // );
             }
           });
@@ -1054,7 +1054,7 @@ class GetDivineController {
 
         case "spirituality":
           const { rows: spirituality } = await pool.query(
-            `SELECT "Image" FROM "Spiritualities"`
+            `SELECT "Id", "Image" FROM "Spiritualities"`
           );
           spirituality.forEach(async (item) => {
             const image = item.Image;
@@ -1068,8 +1068,18 @@ class GetDivineController {
               );
               console.log("Spirituality Image: ", newImageUrl);
               // await pool.query(
-              //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "ID" = $2`,
-              //   [newImageUrl, item.ID]
+              //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
+              // );
+            } else if (image && image.includes("https://acharyaganesh.com")) {
+              const newImageUrl = image.replace(
+                "https://acharyaganesh.com",
+                API_URL
+              );
+              console.log("Spirituality Image: ", newImageUrl);
+              // await pool.query(
+              //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
               // );
             }
           });
@@ -1077,7 +1087,7 @@ class GetDivineController {
 
         case "service":
           const { rows: services } = await pool.query(
-            `SELECT "Image" FROM "Services"`
+            `SELECT "Id", "Image" FROM "Services"`
           );
           services.forEach(async (item) => {
             const image = item.Image;
@@ -1091,8 +1101,8 @@ class GetDivineController {
               );
               console.log("Service Image: ", newImageUrl);
               // await pool.query(
-              //   `UPDATE "Services" SET "Image" = $1 WHERE "ID" = $2`,
-              //   [newImageUrl, item.ID]
+              //   `UPDATE "Services" SET "Image" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
               // );
             }
           });
@@ -1100,7 +1110,7 @@ class GetDivineController {
 
         case "webstory":
           const { rows: webstories } = await pool.query(
-            `SELECT "CoverImageUrl" FROM "WebStories"`
+            `SELECT "Id", "CoverImageUrl" FROM "WebStories"`
           );
           webstories.forEach(async (item) => {
             const image = item.CoverImageUrl;
@@ -1114,30 +1124,27 @@ class GetDivineController {
               );
               console.log("WebStory Image: ", newImageUrl);
               // await pool.query(
-              //   `UPDATE "WebStories" SET "CoverImageUrl" = $1 WHERE "ID" = $2`,
-              //   [newImageUrl, item.ID]
+              //   `UPDATE "WebStories" SET "CoverImageUrl" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
               // );
             }
           });
 
           const { rows: WebStoryImage } = await pool.query(
-            `SELECT "WebStoryImageUrl" FROM "WebStoryImage"`
+            `SELECT "Id", "WebStoryImageUrl" FROM "WebStoryImage"`
           );
 
           WebStoryImage.forEach(async (item) => {
             const image = item.WebStoryImageUrl;
-            if (
-              image &&
-              image.includes("https://i0.wp.com/acharyaganesh.com")
-            ) {
+            if (image && image.includes("https://acharyaganesh.com")) {
               const newImageUrl = image.replace(
-                "https://i0.wp.com/acharyaganesh.com",
+                "https://acharyaganesh.com",
                 API_URL
               );
               console.log("WebStoryImage Image: ", newImageUrl);
               // await pool.query(
-              //   `UPDATE "WebStoryImage" SET "WebStoryImageUrl" = $1 WHERE "ID" = $2`,
-              //   [newImageUrl, item.ID]
+              //   `UPDATE "WebStoryImage" SET "WebStoryImageUrl" = $1 WHERE "Id" = $2`,
+              //   [newImageUrl, item.Id]
               // );
             }
           });
