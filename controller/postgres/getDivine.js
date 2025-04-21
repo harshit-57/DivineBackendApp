@@ -657,13 +657,15 @@ class GetDivineController {
       }
       const { rows: data } = await pool.query(
         `INSERT INTO "Leads" ("Name", "Email", "Phone", "Service", "Message") 
-         VALUES (
-         ${name ? `'${name}'` : null},
-         ${email ? `'${email}'` : null},
-         ${phone ? `'${phone}'` : null},
-         ${service ? `'${service}'` : null},
-         ${message ? `'${message}'` : null})
-         RETURNING *;`
+         VALUES ($1, $2, $3, $4, $5) 
+         RETURNING *`,
+        [
+          name || null,
+          email || null,
+          phone || null,
+          service || null,
+          message || null,
+        ]
       );
       res.json({
         success: 1,
