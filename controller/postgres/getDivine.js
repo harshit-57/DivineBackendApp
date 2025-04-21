@@ -1012,12 +1012,9 @@ class GetDivineController {
           );
           courses.forEach(async (item) => {
             const imageUrl = item.ImageUrl;
-            if (
-              imageUrl &&
-              imageUrl.includes("https://i0.wp.com/acharyaganesh.com")
-            ) {
+            if (imageUrl && imageUrl.includes("http://147.93.104.111:8000")) {
               const newImageUrl = imageUrl.replace(
-                "https://i0.wp.com/acharyaganesh.com",
+                "http://147.93.104.111:8000",
                 API_URL
               );
               console.log("Courses Image: ", newImageUrl, item.Id);
@@ -1033,121 +1030,109 @@ class GetDivineController {
             `SELECT "Id", "Image" FROM "Blogs"`
           );
 
-          blogs.forEach(async (item) => {
-            const image = item.Image;
-            if (
-              image &&
-              image.includes("https://i0.wp.com/acharyaganesh.com")
-            ) {
-              const newImageUrl = image.replace(
-                "https://i0.wp.com/acharyaganesh.com",
-                API_URL
-              );
-              console.log("Blog Image: ", newImageUrl);
-              // await pool.query(
-              //   `UPDATE "Blogs" SET "Image" = $1 WHERE "Id" = $2`,
-              //   [newImageUrl, item.Id]
-              // );
-            }
-          });
+          await Promise.all(
+            blogs.map(async (item) => {
+              const image = item.Image;
+              if (image && image.includes("http://147.93.104.111:8000")) {
+                const newImageUrl = image.replace(
+                  "http://147.93.104.111:8000",
+                  API_URL
+                );
+                console.log("Blog Image: ", newImageUrl);
+                // await pool.query(
+                //   `UPDATE "Blogs" SET "Image" = $1 WHERE "Id" = $2`,
+                //   [newImageUrl, item.Id]
+                // );
+              }
+            })
+          );
           break;
 
         case "spirituality":
           const { rows: spirituality } = await pool.query(
             `SELECT "Id", "Image" FROM "Spiritualities"`
           );
-          spirituality.forEach(async (item) => {
-            const image = item.Image;
-            if (
-              image &&
-              image.includes("https://i0.wp.com/acharyaganesh.com")
-            ) {
-              const newImageUrl = image.replace(
-                "https://i0.wp.com/acharyaganesh.com",
-                API_URL
-              );
-              console.log("Spirituality Image: ", newImageUrl);
-              // await pool.query(
-              //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "Id" = $2`,
-              //   [newImageUrl, item.Id]
-              // );
-            } else if (image && image.includes("https://acharyaganesh.com")) {
-              const newImageUrl = image.replace(
-                "https://acharyaganesh.com",
-                API_URL
-              );
-              console.log("Spirituality Image: ", newImageUrl);
-              // await pool.query(
-              //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "Id" = $2`,
-              //   [newImageUrl, item.Id]
-              // );
-            }
-          });
+          await Promise.all(
+            spirituality.map(async (item) => {
+              const image = item.Image;
+              if (image && image.includes("http://147.93.104.111:8000")) {
+                const newImageUrl = image.replace(
+                  "http://147.93.104.111:8000",
+                  API_URL
+                );
+                console.log("Spirituality Image: ", newImageUrl);
+                // await pool.query(
+                //   `UPDATE "Spiritualities" SET "Image" = $1 WHERE "Id" = $2`,
+                //   [newImageUrl, item.Id]
+                // );
+              }
+            })
+          );
           break;
 
         case "service":
           const { rows: services } = await pool.query(
             `SELECT "Id", "Image" FROM "Services"`
           );
-          services.forEach(async (item) => {
-            const image = item.Image;
-            if (
-              image &&
-              image.includes("https://i0.wp.com/acharyaganesh.com")
-            ) {
-              const newImageUrl = image.replace(
-                "https://i0.wp.com/acharyaganesh.com",
-                API_URL
-              );
-              console.log("Service Image: ", newImageUrl);
-              // await pool.query(
-              //   `UPDATE "Services" SET "Image" = $1 WHERE "Id" = $2`,
-              //   [newImageUrl, item.Id]
-              // );
-            }
-          });
+          await Promise.all(
+            services.map(async (item) => {
+              const image = item.Image;
+              if (image && image.includes("http://147.93.104.111:8000")) {
+                const newImageUrl = image.replace(
+                  "http://147.93.104.111:8000",
+                  API_URL
+                );
+                console.log("Service Image: ", newImageUrl);
+                // await pool.query(
+                //   `UPDATE "Services" SET "Image" = $1 WHERE "Id" = $2`,
+                //   [newImageUrl, item.Id]
+                // );
+              }
+            })
+          );
           break;
 
         case "webstory":
           const { rows: webstories } = await pool.query(
             `SELECT "Id", "CoverImageUrl" FROM "WebStories"`
           );
-          webstories.forEach(async (item) => {
-            const image = item.CoverImageUrl;
-            if (
-              image &&
-              image.includes("https://i0.wp.com/acharyaganesh.com")
-            ) {
-              const newImageUrl = image.replace(
-                "https://i0.wp.com/acharyaganesh.com",
-                API_URL
-              );
-              console.log("WebStory Image: ", newImageUrl);
-              // await pool.query(
-              //   `UPDATE "WebStories" SET "CoverImageUrl" = $1 WHERE "Id" = $2`,
-              //   [newImageUrl, item.Id]
-              // );
-            }
-          });
+          await Promise.all(
+            webstories.map(async (item) => {
+              const image = item.CoverImageUrl;
+              if (image && image.includes("http://147.93.104.111:8000")) {
+                const newImageUrl = image.replace(
+                  "http://147.93.104.111:8000",
+                  API_URL
+                );
+                console.log("WebStory Image: ", newImageUrl);
+                // await pool.query(
+                //   `UPDATE "WebStories" SET "CoverImageUrl" = $1 WHERE "Id" = $2`,
+                //   [newImageUrl, item.Id]
+                // );
+              }
+            })
+          );
 
           const { rows: WebStoryImage } = await pool.query(
             `SELECT "Id", "WebStoryImageUrl" FROM "WebStoryImage"`
           );
 
-          WebStoryImage.forEach(async (item) => {
-            const image = item.WebStoryImageUrl;
-            if (image && image.includes("https://acharyaganesh.com")) {
-              const newImageUrl = image.replace(
-                "https://acharyaganesh.com",
-                API_URL
-              );
-              console.log("WebStoryImage Image: ", newImageUrl);
-              // await pool.query(
-              //   `UPDATE "WebStoryImage" SET "WebStoryImageUrl" = $1 WHERE "Id" = $2`,
-              //   [newImageUrl, item.Id]
-              // );
-            }
-          });
+          await Promise.all(
+            WebStoryImage.map(async (item) => {
+              const image = item.WebStoryImageUrl;
+              if (image && image.includes("http://147.93.104.111:8000")) {
+                const newImageUrl = image.replace(
+                  "http://147.93.104.111:8000",
+                  API_URL
+                );
+                console.log("WebStoryImage Image: ", newImageUrl);
+                // await pool.query(
+                //   `UPDATE "WebStoryImage" SET "WebStoryImageUrl" = $1 WHERE "Id" = $2`,
+                //   [newImageUrl, item.Id]
+                // );
+              }
+            })
+          );
           break;
 
         default:
