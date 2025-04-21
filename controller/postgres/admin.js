@@ -297,31 +297,29 @@ class AdminController {
           "PublishedOn", 
           "Status"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.slug}',
-          '${payload.description}',
-          '${payload.shortDescription}',
-          '${payload.productUrl}',
-          'Buy Now',
-          '${payload.regularPrice}',
-          ${payload.salePrice ? `'${payload.salePrice}'` : "NULL"},
-          ${payload.focusKeyphrase ? `'${payload.focusKeyphrase}'` : "NULL"},
-          '${payload.metaTitle || payload.title}',
-          '${
-            payload.metaSiteName ||
-            "Acharya Ganesh: Solutions for Life, Love, and Career Woes"
-          }',
-          '${payload.metaDescription || ""}',
-          '${payload.isTOP || 0}',
-          '${
-            new Date(payload.publishedOn) > new Date()
-              ? payload.publishedOn
-              : new Date().toISOString()
-          }',
-          '${payload.Status || 1}'
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        RETURNING "Id"
+      `,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          payload.shortDescription,
+          payload.productUrl,
+          "Buy Now",
+          payload.regularPrice,
+          payload.salePrice || null,
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          payload.isTOP || 0,
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.status || 1,
+        ]
       );
 
       if (!course.length) {
@@ -336,9 +334,8 @@ class AdminController {
       if (payload?.image) {
         await pool.query(
           `INSERT INTO "ProductMappingImage" ("ProductId", "ImageUrl", "ImageAlt") 
-           VALUES ('${courseId}', '${payload.image}', '${
-            payload.imageAlt || ""
-          }')`
+           VALUES ($1, $2, $3)`,
+          [courseId, payload.image, payload.imageAlt || ""]
         );
       }
 
@@ -348,7 +345,8 @@ class AdminController {
             if (category?.id) {
               await pool.query(
                 `INSERT INTO "ProductMappingCategory" ("ProductId", "ProductCategoryId") 
-                 VALUES ('${courseId}', '${category.id}')`
+                 VALUES ($1, $2)`,
+                [courseId, category.id]
               );
             }
           })
@@ -359,25 +357,26 @@ class AdminController {
         await Promise.all(
           payload?.tags.map(async (tag) => {
             const { rows: oldTag } = await pool.query(
-              `SELECT "Id" FROM "ProductTags" WHERE "Name" = '${tag?.name}'`
+              `SELECT "Id" FROM "ProductTags" WHERE "Name" = $1`,
+              [tag?.name]
             );
             if (oldTag[0]?.Id) {
               await pool.query(
                 `INSERT INTO "ProductMappingTag" ("ProductId", "ProductTagId") 
-                 VALUES ('${courseId}', '${oldTag[0].Id}')`
+                 VALUES ($1, $2)`,
+                [courseId, oldTag[0].Id]
               );
             } else {
               const { rows: newTag } = await pool.query(
                 `INSERT INTO "ProductTags" ("Name", "Slug") 
-                 VALUES ('${tag?.name}', '${await generatedSlug(
-                  tag?.name,
-                  "ProductTags"
-                )}') 
-                 RETURNING "Id"`
+                 VALUES ($1, $2) 
+                 RETURNING "Id"`,
+                [tag?.name, await generatedSlug(tag?.name, "ProductTags")]
               );
               await pool.query(
                 `INSERT INTO "ProductMappingTag" ("ProductId", "ProductTagId") 
-                 VALUES ('${courseId}', '${newTag[0].Id}')`
+                 VALUES ($1, $2)`,
+                [courseId, newTag[0].Id]
               );
             }
           })
@@ -393,7 +392,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -412,7 +411,8 @@ class AdminController {
       }
 
       const { rows: product } = await pool.query(
-        `SELECT * FROM "Products" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "Products" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!product.length) {
@@ -426,7 +426,8 @@ class AdminController {
 
       if (payload?.slug && existingProduct.Slug !== payload?.slug) {
         const { rows: existSlug } = await pool.query(
-          `SELECT "Id" FROM "Products" WHERE "Slug" = '${payload.slug}'`
+          `SELECT "Id" FROM "Products" WHERE "Slug" = $1`,
+          [payload.slug]
         );
         if (existSlug.length) {
           return res.status(400).json({
@@ -476,44 +477,51 @@ class AdminController {
         await pool.query(
           `UPDATE "Products" SET 
            ${Object.keys(updateDetails)
-             .map((key) => `"${key}" = '${updateDetails[key]}'`)
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+           WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
       if (payload?.image) {
         await pool.query(
-          `DELETE FROM "ProductMappingImage" WHERE "ProductId" = '${payload.id}'`
+          `DELETE FROM "ProductMappingImage" WHERE "ProductId" = $1`,
+          [payload.id]
         );
         await pool.query(
           `INSERT INTO "ProductMappingImage" ("ProductId", "ImageUrl", "ImageAlt") 
-           VALUES ('${payload.id}', '${payload.image}', '${
-            payload.imageAlt || ""
-          }')`
+           VALUES ($1, $2, $3)`,
+          [payload.id, payload.image, payload.imageAlt || ""]
         );
       }
 
       if (payload?.categories?.length) {
+        const categoryIds = payload.categories
+          .map((category) => category?.id)
+          .filter(Boolean);
         await pool.query(
           `DELETE FROM "ProductMappingCategory" 
-           WHERE "ProductId" = '${payload.id}' 
-           AND "ProductCategoryId" NOT IN (${payload.categories
-             .map((category) => `'${category?.id}'`)
-             .join(", ")})`
+           WHERE "ProductId" = $1 
+           AND "ProductCategoryId" NOT IN (${categoryIds
+             .map((_, i) => `$${i + 2}`)
+             .join(", ")})`,
+          [payload.id, ...categoryIds]
         );
 
         await Promise.all(
-          payload?.categories?.map(async (category) => {
+          payload.categories.map(async (category) => {
             if (category?.id) {
               const { rows: existCategory } = await pool.query(
                 `SELECT "Id" FROM "ProductMappingCategory" 
-                 WHERE "ProductId" = '${payload.id}' AND "ProductCategoryId" = '${category.id}'`
+                 WHERE "ProductId" = $1 AND "ProductCategoryId" = $2`,
+                [payload.id, category.id]
               );
               if (!existCategory?.length) {
                 await pool.query(
                   `INSERT INTO "ProductMappingCategory" ("ProductId", "ProductCategoryId") 
-                   VALUES ('${payload.id}', '${category.id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, category.id]
                 );
               }
             }
@@ -524,38 +532,42 @@ class AdminController {
       if (payload?.tags?.length) {
         const existingTagIds = payload.tags
           .filter((tag) => tag?.id)
-          .map((tag) => `'${tag.id}'`);
+          .map((tag) => tag.id);
         await pool.query(
           `DELETE FROM "ProductMappingTag" 
-           WHERE "ProductId" = '${payload.id}' ${
-            existingTagIds.length
-              ? `AND "ProductTagId" NOT IN (${existingTagIds.join(", ")})`
-              : ""
-          }`
+           WHERE "ProductId" = $1 ${
+             existingTagIds.length
+               ? `AND "ProductTagId" NOT IN (${existingTagIds
+                   .map((_, i) => `$${i + 2}`)
+                   .join(", ")})`
+               : ""
+           }`,
+          existingTagIds.length ? [payload.id, ...existingTagIds] : [payload.id]
         );
         await Promise.all(
           payload?.tags.map(async (tag) => {
             if (!tag?.id && tag?.name) {
               const { rows: oldTag } = await pool.query(
-                `SELECT "Id" FROM "ProductTags" WHERE "Name" = '${tag.name}'`
+                `SELECT "Id" FROM "ProductTags" WHERE "Name" = $1`,
+                [tag.name]
               );
               if (oldTag[0]?.Id) {
                 await pool.query(
                   `INSERT INTO "ProductMappingTag" ("ProductId", "ProductTagId") 
-                   VALUES ('${payload.id}', '${oldTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, oldTag[0].Id]
                 );
               } else {
                 const { rows: newTag } = await pool.query(
                   `INSERT INTO "ProductTags" ("Name", "Slug") 
-                   VALUES ('${tag.name}', '${await generatedSlug(
-                    tag.name,
-                    "ProductTags"
-                  )}') 
-                   RETURNING "Id"`
+                   VALUES ($1, $2) 
+                   RETURNING "Id"`,
+                  [tag.name, await generatedSlug(tag.name, "ProductTags")]
                 );
                 await pool.query(
                   `INSERT INTO "ProductMappingTag" ("ProductId", "ProductTagId") 
-                   VALUES ('${payload.id}', '${newTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, newTag[0].Id]
                 );
               }
             }
@@ -572,7 +584,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -610,31 +622,27 @@ class AdminController {
           "PublishedOn", 
           "Status"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.slug}',
-          '${payload.description}',
-          ${
-            payload.shortDescription ? `'${payload.shortDescription}'` : "NULL"
-          },
-          ${payload.image ? `'${payload.image}'` : "NULL"},
-          ${payload.imageAlt ? `'${payload.imageAlt}'` : "NULL"},
-          ${payload.focusKeyphrase ? `'${payload.focusKeyphrase}'` : "NULL"},
-          '${payload.metaTitle || payload.title}',
-          '${
-            payload.metaSiteName ||
-            "Acharya Ganesh: Solutions for Life, Love, and Career Woes"
-          }',
-          '${payload.metaDescription || ""}',
-          '${payload.isTOP || 1}',
-          '${
-            new Date(payload.publishedOn) > new Date()
-              ? payload.publishedOn
-              : new Date().toISOString()
-          }',
-          '${payload.Status || 1}'
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        RETURNING "Id"
+        `,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          payload.shortDescription || null,
+          payload.image || null,
+          payload.imageAlt || null,
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          payload.isTOP || 1,
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.status || 1,
+        ]
       );
 
       if (!blog.length) {
@@ -652,7 +660,8 @@ class AdminController {
             if (category?.id) {
               await pool.query(
                 `INSERT INTO "BlogMappingCategory" ("BlogId", "BlogCategoryId") 
-                 VALUES ('${blogId}', '${category.id}')`
+                 VALUES ($1, $2)`,
+                [blogId, category.id]
               );
             }
           })
@@ -664,25 +673,26 @@ class AdminController {
           payload?.tags.map(async (tag) => {
             if (tag?.name) {
               const { rows: oldTag } = await pool.query(
-                `SELECT "Id" FROM "BlogTags" WHERE "Name" = '${tag.name}'`
+                `SELECT "Id" FROM "BlogTags" WHERE "Name" = $1`,
+                [tag.name]
               );
               if (oldTag[0]?.Id) {
                 await pool.query(
                   `INSERT INTO "BlogMappingTag" ("BlogId", "BlogTagId") 
-                   VALUES ('${blogId}', '${oldTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [blogId, oldTag[0].Id]
                 );
               } else {
                 const { rows: newTag } = await pool.query(
                   `INSERT INTO "BlogTags" ("Name", "Slug") 
-                   VALUES ('${tag.name}', '${await generatedSlug(
-                    tag.name,
-                    "BlogTags"
-                  )}') 
-                   RETURNING "Id"`
+                   VALUES ($1, $2) 
+                   RETURNING "Id"`,
+                  [tag.name, await generatedSlug(tag.name, "BlogTags")]
                 );
                 await pool.query(
                   `INSERT INTO "BlogMappingTag" ("BlogId", "BlogTagId") 
-                   VALUES ('${blogId}', '${newTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [blogId, newTag[0].Id]
                 );
               }
             }
@@ -699,7 +709,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -718,7 +728,8 @@ class AdminController {
       }
 
       const { rows: blog } = await pool.query(
-        `SELECT * FROM "Blogs" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "Blogs" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!blog.length) {
@@ -732,7 +743,8 @@ class AdminController {
 
       if (payload?.slug && existingBlog.Slug !== payload?.slug) {
         const { rows: existSlug } = await pool.query(
-          `SELECT "Id" FROM "Blogs" WHERE "Slug" = '${payload.slug}'`
+          `SELECT "Id" FROM "Blogs" WHERE "Slug" = $1`,
+          [payload.slug]
         );
         if (existSlug.length) {
           return res.status(400).json({
@@ -779,26 +791,24 @@ class AdminController {
         await pool.query(
           `UPDATE "Blogs" SET 
            ${Object.keys(updateDetails)
-             .map(
-               (key) =>
-                 `"${key}" = ${
-                   updateDetails[key] === null
-                     ? "NULL"
-                     : `'${updateDetails[key]}'`
-                 }`
-             )
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+           WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
       if (payload?.categories?.length) {
+        const categoryIds = payload.categories
+          .map((category) => category?.id)
+          .filter(Boolean);
         await pool.query(
           `DELETE FROM "BlogMappingCategory" 
-           WHERE "BlogId" = '${payload.id}' 
-           AND "BlogCategoryId" NOT IN (${payload.categories
-             .map((category) => `'${category?.id}'`)
-             .join(", ")})`
+           WHERE "BlogId" = $1 
+           AND "BlogCategoryId" NOT IN (${categoryIds
+             .map((_, i) => `$${i + 2}`)
+             .join(", ")})`,
+          [payload.id, ...categoryIds]
         );
 
         await Promise.all(
@@ -806,12 +816,14 @@ class AdminController {
             if (category?.id) {
               const { rows: existCategory } = await pool.query(
                 `SELECT "Id" FROM "BlogMappingCategory" 
-                 WHERE "BlogId" = '${payload.id}' AND "BlogCategoryId" = '${category.id}'`
+                 WHERE "BlogId" = $1 AND "BlogCategoryId" = $2`,
+                [payload.id, category.id]
               );
               if (!existCategory?.length) {
                 await pool.query(
                   `INSERT INTO "BlogMappingCategory" ("BlogId", "BlogCategoryId") 
-                   VALUES ('${payload.id}', '${category.id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, category.id]
                 );
               }
             }
@@ -822,38 +834,42 @@ class AdminController {
       if (payload?.tags?.length) {
         const existingTagIds = payload.tags
           .filter((tag) => tag?.id)
-          .map((tag) => `'${tag.id}'`);
+          .map((tag) => tag.id);
         await pool.query(
           `DELETE FROM "BlogMappingTag" 
-           WHERE "BlogId" = '${payload.id}' ${
-            existingTagIds.length
-              ? `AND "BlogTagId" NOT IN (${existingTagIds.join(", ")})`
-              : ""
-          }`
+           WHERE "BlogId" = $1 ${
+             existingTagIds.length
+               ? `AND "BlogTagId" NOT IN (${existingTagIds
+                   .map((_, i) => `$${i + 2}`)
+                   .join(", ")})`
+               : ""
+           }`,
+          existingTagIds.length ? [payload.id, ...existingTagIds] : [payload.id]
         );
         await Promise.all(
           payload?.tags.map(async (tag) => {
             if (!tag?.id && tag?.name) {
               const { rows: oldTag } = await pool.query(
-                `SELECT "Id" FROM "BlogTags" WHERE "Name" = '${tag.name}'`
+                `SELECT "Id" FROM "BlogTags" WHERE "Name" = $1`,
+                [tag.name]
               );
               if (oldTag[0]?.Id) {
                 await pool.query(
                   `INSERT INTO "BlogMappingTag" ("BlogId", "BlogTagId") 
-                   VALUES ('${payload.id}', '${oldTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, oldTag[0].Id]
                 );
               } else {
                 const { rows: newTag } = await pool.query(
                   `INSERT INTO "BlogTags" ("Name", "Slug") 
-                   VALUES ('${tag.name}', '${await generatedSlug(
-                    tag.name,
-                    "BlogTags"
-                  )}') 
-                   RETURNING "Id"`
+                   VALUES ($1, $2) 
+                   RETURNING "Id"`,
+                  [tag.name, await generatedSlug(tag.name, "BlogTags")]
                 );
                 await pool.query(
                   `INSERT INTO "BlogMappingTag" ("BlogId", "BlogTagId") 
-                   VALUES ('${payload.id}', '${newTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, newTag[0].Id]
                 );
               }
             }
@@ -870,7 +886,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -907,28 +923,25 @@ class AdminController {
           "PublishedOn", 
           "Status"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.slug}',
-          '${payload.description}',
-          ${payload.image ? `'${payload.image}'` : "NULL"},
-          ${payload.imageAlt ? `'${payload.imageAlt}'` : "NULL"},
-          ${payload.focusKeyphrase ? `'${payload.focusKeyphrase}'` : "NULL"},
-          '${payload.metaTitle || payload.title}',
-          '${
-            payload.metaSiteName ||
-            "Acharya Ganesh: Solutions for Life, Love, and Career Woes"
-          }',
-          '${payload.metaDescription || ""}',
-          '${payload.isTOP || 1}',
-          '${
-            new Date(payload.publishedOn) > new Date()
-              ? payload.publishedOn
-              : new Date().toISOString()
-          }',
-          '${payload.Status || 1}'
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        RETURNING "Id"`,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          payload.image || null,
+          payload.imageAlt || null,
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          payload.isTOP || 1,
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.status || 1,
+        ]
       );
 
       if (!spirituality.length) {
@@ -946,7 +959,8 @@ class AdminController {
             if (category?.id) {
               await pool.query(
                 `INSERT INTO "SpiritualityMappingCategory" ("SpiritualityId", "SpiritualityCategoryId") 
-                 VALUES ('${spiritualityId}', '${category.id}')`
+                 VALUES ($1, $2)`,
+                [spiritualityId, category.id]
               );
             }
           })
@@ -958,25 +972,26 @@ class AdminController {
           payload?.tags.map(async (tag) => {
             if (tag?.name) {
               const { rows: oldTag } = await pool.query(
-                `SELECT "Id" FROM "SpiritualityTags" WHERE "Name" = '${tag.name}'`
+                `SELECT "Id" FROM "SpiritualityTags" WHERE "Name" = $1`,
+                [tag.name]
               );
               if (oldTag[0]?.Id) {
                 await pool.query(
                   `INSERT INTO "SpiritualityMappingTag" ("SpiritualityId", "SpiritualityTagId") 
-                   VALUES ('${spiritualityId}', '${oldTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [spiritualityId, oldTag[0].Id]
                 );
               } else {
                 const { rows: newTag } = await pool.query(
                   `INSERT INTO "SpiritualityTags" ("Name", "Slug") 
-                   VALUES ('${tag.name}', '${await generatedSlug(
-                    tag.name,
-                    "SpiritualityTags"
-                  )}') 
-                   RETURNING "Id"`
+                   VALUES ($1, $2) 
+                   RETURNING "Id"`,
+                  [tag.name, await generatedSlug(tag.name, "SpiritualityTags")]
                 );
                 await pool.query(
                   `INSERT INTO "SpiritualityMappingTag" ("SpiritualityId", "SpiritualityTagId") 
-                   VALUES ('${spiritualityId}', '${newTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [spiritualityId, newTag[0].Id]
                 );
               }
             }
@@ -993,7 +1008,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1012,7 +1027,8 @@ class AdminController {
       }
 
       const { rows: spirituality } = await pool.query(
-        `SELECT * FROM "Spiritualities" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "Spiritualities" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!spirituality.length) {
@@ -1026,7 +1042,8 @@ class AdminController {
 
       if (payload?.slug && existingSpirituality.Slug !== payload?.slug) {
         const { rows: existSlug } = await pool.query(
-          `SELECT "Id" FROM "Spiritualities" WHERE "Slug" = '${payload.slug}'`
+          `SELECT "Id" FROM "Spiritualities" WHERE "Slug" = $1`,
+          [payload.slug]
         );
         if (existSlug.length) {
           return res.status(400).json({
@@ -1071,26 +1088,24 @@ class AdminController {
         await pool.query(
           `UPDATE "Spiritualities" SET 
            ${Object.keys(updateDetails)
-             .map(
-               (key) =>
-                 `"${key}" = ${
-                   updateDetails[key] === null
-                     ? "NULL"
-                     : `'${updateDetails[key]}'`
-                 }`
-             )
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+          WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
       if (payload?.categories?.length) {
+        const categoryIds = payload.categories
+          .map((category) => category?.id)
+          .filter(Boolean);
         await pool.query(
           `DELETE FROM "SpiritualityMappingCategory" 
-           WHERE "SpiritualityId" = '${payload.id}' 
-           AND "SpiritualityCategoryId" NOT IN (${payload.categories
-             .map((category) => `'${category?.id}'`)
-             .join(", ")})`
+           WHERE "SpiritualityId" = $1 
+           AND "SpiritualityCategoryId" NOT IN (${categoryIds
+             .map((_, i) => `$${i + 2}`)
+             .join(", ")})`,
+          [payload.id, ...categoryIds]
         );
 
         await Promise.all(
@@ -1098,12 +1113,14 @@ class AdminController {
             if (category?.id) {
               const { rows: existCategory } = await pool.query(
                 `SELECT "Id" FROM "SpiritualityMappingCategory" 
-                 WHERE "SpiritualityId" = '${payload.id}' AND "SpiritualityCategoryId" = '${category.id}'`
+                 WHERE "SpiritualityId" = $1 AND "SpiritualityCategoryId" = $2`,
+                [payload.id, category.id]
               );
               if (!existCategory?.length) {
                 await pool.query(
                   `INSERT INTO "SpiritualityMappingCategory" ("SpiritualityId", "SpiritualityCategoryId") 
-                   VALUES ('${payload.id}', '${category.id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, category.id]
                 );
               }
             }
@@ -1114,38 +1131,42 @@ class AdminController {
       if (payload?.tags?.length) {
         const existingTagIds = payload.tags
           .filter((tag) => tag?.id)
-          .map((tag) => `'${tag.id}'`);
+          .map((tag) => tag.id);
         await pool.query(
           `DELETE FROM "SpiritualityMappingTag" 
-           WHERE "SpiritualityId" = '${payload.id}' ${
-            existingTagIds.length
-              ? `AND "SpiritualityTagId" NOT IN (${existingTagIds.join(", ")})`
-              : ""
-          }`
+           WHERE "SpiritualityId" = $1 ${
+             existingTagIds.length
+               ? `AND "SpiritualityTagId" NOT IN (${existingTagIds
+                   .map((_, i) => `$${i + 2}`)
+                   .join(", ")})`
+               : ""
+           }`,
+          existingTagIds.length ? [payload.id, ...existingTagIds] : [payload.id]
         );
         await Promise.all(
-          payload?.tags.map(async (tag) => {
+          payload.tags.map(async (tag) => {
             if (!tag?.id && tag?.name) {
               const { rows: oldTag } = await pool.query(
-                `SELECT "Id" FROM "SpiritualityTags" WHERE "Name" = '${tag.name}'`
+                `SELECT "Id" FROM "SpiritualityTags" WHERE "Name" = $1`,
+                [tag.name]
               );
               if (oldTag[0]?.Id) {
                 await pool.query(
                   `INSERT INTO "SpiritualityMappingTag" ("SpiritualityId", "SpiritualityTagId") 
-                   VALUES ('${payload.id}', '${oldTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, oldTag[0].Id]
                 );
               } else {
                 const { rows: newTag } = await pool.query(
                   `INSERT INTO "SpiritualityTags" ("Name", "Slug") 
-                   VALUES ('${tag.name}', '${await generatedSlug(
-                    tag.name,
-                    "SpiritualityTags"
-                  )}') 
-                   RETURNING "Id"`
+                   VALUES ($1, $2) 
+                   RETURNING "Id"`,
+                  [tag.name, await generatedSlug(tag.name, "SpiritualityTags")]
                 );
                 await pool.query(
                   `INSERT INTO "SpiritualityMappingTag" ("SpiritualityId", "SpiritualityTagId") 
-                   VALUES ('${payload.id}', '${newTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, newTag[0].Id]
                 );
               }
             }
@@ -1162,7 +1183,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1196,25 +1217,22 @@ class AdminController {
           "Meta_Desc",
           "Status"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.slug}',
-          '${payload.description}',
-          '${
-            new Date(payload.publishedOn) > new Date()
-              ? payload.publishedOn
-              : new Date().toISOString()
-          }',
-          ${payload.focusKeyphrase ? `'${payload.focusKeyphrase}'` : "NULL"},
-          '${payload.metaTitle || payload.title}',
-          '${
-            payload.metaSiteName ||
-            "Acharya Ganesh: Solutions for Life, Love, and Career Woes"
-          }',
-          '${payload.metaDescription || ""}',
-          '${payload.Status || 1}'
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING "Id"`,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          payload.status || 1,
+        ]
       );
 
       if (!citation.length) {
@@ -1235,7 +1253,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1254,7 +1272,8 @@ class AdminController {
       }
 
       const { rows: citation } = await pool.query(
-        `SELECT * FROM "Citations" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "Citations" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!citation.length) {
@@ -1268,7 +1287,8 @@ class AdminController {
 
       if (payload?.slug && existingCitation.Slug !== payload?.slug) {
         const { rows: existSlug } = await pool.query(
-          `SELECT "Id" FROM "Citations" WHERE "Slug" = '${payload.slug}'`
+          `SELECT "Id" FROM "Citations" WHERE "Slug" = $1`,
+          [payload.slug]
         );
         if (existSlug.length) {
           return res.status(400).json({
@@ -1309,16 +1329,10 @@ class AdminController {
         await pool.query(
           `UPDATE "Citations" SET 
            ${Object.keys(updateDetails)
-             .map(
-               (key) =>
-                 `"${key}" = ${
-                   updateDetails[key] === null
-                     ? "NULL"
-                     : `'${updateDetails[key]}'`
-                 }`
-             )
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+           WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
@@ -1331,7 +1345,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1358,18 +1372,17 @@ class AdminController {
           "PublishedOn", 
           "Status"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.description}',
-          '${payload?.rating ? Number(payload.rating).toFixed(1) : 5}',
-          '${
-            new Date(payload.publishedOn) > new Date()
-              ? payload.publishedOn
-              : new Date().toISOString()
-          }',
-          '${payload.Status || 1}'
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING "Id"`,
+        [
+          payload.title,
+          payload.description,
+          payload?.rating ? Number(payload.rating).toFixed(1) : 5,
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.status || 1,
+        ]
       );
 
       if (!testimonial.length) {
@@ -1389,7 +1402,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1408,7 +1421,8 @@ class AdminController {
       }
 
       const { rows: testimonial } = await pool.query(
-        `SELECT * FROM "Testimonials" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "Testimonials" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!testimonial.length) {
@@ -1417,8 +1431,6 @@ class AdminController {
           message: "Testimonial not found",
         });
       }
-
-      const existingTestimonial = testimonial[0];
 
       const updateDetails = {};
 
@@ -1432,7 +1444,7 @@ class AdminController {
       if (
         payload.publishedOn &&
         new Date(payload.publishedOn).toISOString() !==
-          new Date(existingTestimonial.PublishedOn).toISOString()
+          new Date(testimonial[0].PublishedOn).toISOString()
       )
         updateDetails["PublishedOn"] = new Date(
           payload.publishedOn
@@ -1446,9 +1458,10 @@ class AdminController {
         await pool.query(
           `UPDATE "Testimonials" SET 
            ${Object.keys(updateDetails)
-             .map((key) => `"${key}" = '${updateDetails[key]}'`)
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+           WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
@@ -1460,7 +1473,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1494,20 +1507,19 @@ class AdminController {
           "PublishedOn", 
           "Status"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.shortDescription}',
-          '${payload.image}',
-          '${payload.imageAlt || ""}',
-          '${payload.timeDuration || 500}',
-          '${
-            new Date(payload.publishedOn) > new Date()
-              ? payload.publishedOn
-              : new Date().toISOString()
-          }',
-          '${payload.Status || 1}'
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING "Id"`,
+        [
+          payload.title,
+          payload.shortDescription,
+          payload.image,
+          payload.imageAlt || "",
+          payload.timeDuration || 500,
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.status || 1,
+        ]
       );
 
       if (!webStory.length) {
@@ -1533,15 +1545,16 @@ class AdminController {
                 "WebStoryImageLinkText", 
                 "WebStoryImageLinkIcon"
               ) 
-              VALUES (
-                '${webStoryId}',
-                '${image?.imageUrl || ""}',
-                '${image?.imageText || ""}',
-                '${index + 1}',
-                '${image?.imageLink || ""}',
-                '${image?.imageLinkText || ""}',
-                '${image?.imageLinkIcon || ""}'
-              )`
+              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                webStoryId,
+                image?.imageUrl || "",
+                image?.imageText || "",
+                index + 1,
+                image?.imageLink || "",
+                image?.imageLinkText || "",
+                image?.imageLinkIcon || "",
+              ]
             );
           })
         );
@@ -1553,7 +1566,8 @@ class AdminController {
             if (category?.id) {
               await pool.query(
                 `INSERT INTO "WebStoryMappingCategory" ("WebStoryId", "WebStoryCategoryId") 
-                 VALUES ('${webStoryId}', '${category.id}')`
+                 VALUES ($1, $2)`,
+                [webStoryId, category.id]
               );
             }
           })
@@ -1564,25 +1578,26 @@ class AdminController {
         await Promise.all(
           payload?.tags.map(async (tag) => {
             const { rows: oldTag } = await pool.query(
-              `SELECT "Id" FROM "WebStoryTags" WHERE "Name" = '${tag?.name}'`
+              `SELECT "Id" FROM "WebStoryTags" WHERE "Name" = $1`,
+              [tag?.name]
             );
             if (oldTag[0]?.Id) {
               await pool.query(
                 `INSERT INTO "WebStoryMappingTag" ("WebStoryId", "WebStoryTagId") 
-                 VALUES ('${webStoryId}', '${oldTag[0].Id}')`
+                 VALUES ($1, $2)`,
+                [webStoryId, oldTag[0].Id]
               );
             } else {
               const { rows: newTag } = await pool.query(
                 `INSERT INTO "WebStoryTags" ("Name", "Slug") 
-                 VALUES ('${tag?.name}', '${await generatedSlug(
-                  tag?.name,
-                  "WebStoryTags"
-                )}') 
-                 RETURNING "Id"`
+                 VALUES ($1, $2) 
+                 RETURNING "Id"`,
+                [tag?.name, await generatedSlug(tag?.name, "WebStoryTags")]
               );
               await pool.query(
                 `INSERT INTO "WebStoryMappingTag" ("WebStoryId", "WebStoryTagId") 
-                 VALUES ('${webStoryId}', '${newTag[0].Id}')`
+                 VALUES ($1, $2)`,
+                [webStoryId, newTag[0].Id]
               );
             }
           })
@@ -1597,7 +1612,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1616,7 +1631,8 @@ class AdminController {
       }
 
       const { rows: webStory } = await pool.query(
-        `SELECT * FROM "WebStories" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "WebStories" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!webStory.length) {
@@ -1626,21 +1642,20 @@ class AdminController {
         });
       }
 
-      const existingWebStory = webStory[0];
-
       const updateDetails = {};
 
       if (payload.title) updateDetails["Title"] = payload.title;
       if (payload.shortDescription)
         updateDetails["ShortDescription"] = payload.shortDescription;
       if (payload.image) updateDetails["CoverImageUrl"] = payload.image;
-      if (payload.imageAlt) updateDetails["CoverImageAlt"] = payload.imageAlt;
+      if (payload.imageAlt !== undefined)
+        updateDetails["CoverImageAlt"] = payload.imageAlt;
       if (payload.timeDuration)
         updateDetails["TimeDuration"] = payload.timeDuration;
       if (
         payload.publishedOn &&
         new Date(payload.publishedOn).toISOString() !==
-          new Date(existingWebStory.PublishedOn).toISOString()
+          new Date(webStory[0].PublishedOn).toISOString()
       )
         updateDetails["PublishedOn"] = new Date(
           payload.publishedOn
@@ -1654,15 +1669,17 @@ class AdminController {
         await pool.query(
           `UPDATE "WebStories" SET 
            ${Object.keys(updateDetails)
-             .map((key) => `"${key}" = '${updateDetails[key]}'`)
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+            WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
       if (payload?.storyImages) {
         await pool.query(
-          `DELETE FROM "WebStoryImage" WHERE "WebStoryId" = '${payload.id}'`
+          `DELETE FROM "WebStoryImage" WHERE "WebStoryId" = $1`,
+          [payload.id]
         );
         await Promise.all(
           payload?.storyImages?.map(async (image, index) => {
@@ -1677,40 +1694,47 @@ class AdminController {
                 "WebStoryImageLinkText", 
                 "WebStoryImageLinkIcon"
               ) 
-              VALUES (
-                '${payload.id}',
-                '${image?.imageUrl || ""}',
-                '${image?.imageText || ""}',
-                '${index + 1}',
-                '${image?.imageLink || ""}',
-                '${image?.imageLinkText || ""}',
-                '${image?.imageLinkIcon || ""}'
-              )`
+              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                payload.id,
+                image?.imageUrl || "",
+                image?.imageText || "",
+                index + 1,
+                image?.imageLink || "",
+                image?.imageLinkText || "",
+                image?.imageLinkIcon || "",
+              ]
             );
           })
         );
       }
 
       if (payload?.categories?.length) {
+        const categoryIds = payload.categories
+          .map((category) => category?.id)
+          .filter(Boolean);
         await pool.query(
           `DELETE FROM "WebStoryMappingCategory" 
-           WHERE "WebStoryId" = '${payload.id}' 
-           AND "WebStoryCategoryId" NOT IN (${payload.categories
-             .map((category) => `'${category?.id}'`)
-             .join(", ")})`
+           WHERE "WebStoryId" = $1 
+           AND "WebStoryCategoryId" NOT IN (${categoryIds
+             .map((_, i) => `$${i + 2}`)
+             .join(", ")})`,
+          [payload.id, ...categoryIds]
         );
 
         await Promise.all(
-          payload?.categories?.map(async (category) => {
+          payload.categories.map(async (category) => {
             if (category?.id) {
               const { rows: existCategory } = await pool.query(
                 `SELECT "Id" FROM "WebStoryMappingCategory" 
-                 WHERE "WebStoryId" = '${payload.id}' AND "WebStoryCategoryId" = '${category.id}'`
+                 WHERE "WebStoryId" = $1 AND "WebStoryCategoryId" = $2`,
+                [payload.id, category.id]
               );
               if (!existCategory?.length) {
                 await pool.query(
                   `INSERT INTO "WebStoryMappingCategory" ("WebStoryId", "WebStoryCategoryId") 
-                   VALUES ('${payload.id}', '${category.id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, category.id]
                 );
               }
             }
@@ -1721,38 +1745,42 @@ class AdminController {
       if (payload?.tags?.length) {
         const existingTagIds = payload.tags
           .filter((tag) => tag?.id)
-          .map((tag) => `'${tag.id}'`);
+          .map((tag) => tag.id);
         await pool.query(
           `DELETE FROM "WebStoryMappingTag" 
-           WHERE "WebStoryId" = '${payload.id}' ${
-            existingTagIds.length
-              ? `AND "WebStoryTagId" NOT IN (${existingTagIds.join(", ")})`
-              : ""
-          }`
+           WHERE "WebStoryId" = $1 ${
+             existingTagIds.length
+               ? `AND "WebStoryTagId" NOT IN (${existingTagIds
+                   .map((_, i) => `$${i + 2}`)
+                   .join(", ")})`
+               : ""
+           }`,
+          existingTagIds.length ? [payload.id, ...existingTagIds] : [payload.id]
         );
         await Promise.all(
-          payload?.tags.map(async (tag) => {
+          payload.tags.map(async (tag) => {
             if (!tag?.id && tag?.name) {
               const { rows: oldTag } = await pool.query(
-                `SELECT "Id" FROM "WebStoryTags" WHERE "Name" = '${tag.name}'`
+                `SELECT "Id" FROM "WebStoryTags" WHERE "Name" = $1`,
+                [tag.name]
               );
               if (oldTag[0]?.Id) {
                 await pool.query(
                   `INSERT INTO "WebStoryMappingTag" ("WebStoryId", "WebStoryTagId") 
-                   VALUES ('${payload.id}', '${oldTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, oldTag[0].Id]
                 );
               } else {
                 const { rows: newTag } = await pool.query(
                   `INSERT INTO "WebStoryTags" ("Name", "Slug") 
-                   VALUES ('${tag.name}', '${await generatedSlug(
-                    tag.name,
-                    "WebStoryTags"
-                  )}') 
-                   RETURNING "Id"`
+                   VALUES ($1, $2) 
+                   RETURNING "Id"`,
+                  [tag.name, await generatedSlug(tag.name, "WebStoryTags")]
                 );
                 await pool.query(
                   `INSERT INTO "WebStoryMappingTag" ("WebStoryId", "WebStoryTagId") 
-                   VALUES ('${payload.id}', '${newTag[0].Id}')`
+                   VALUES ($1, $2)`,
+                  [payload.id, newTag[0].Id]
                 );
               }
             }
@@ -1768,7 +1796,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -1788,117 +1816,61 @@ class AdminController {
           message: "Missing required fields",
         });
       }
+      let tableName;
       switch (type) {
         case "course":
-          const { rows: category } = await pool.query(
-            `SELECT "Id" FROM "ProductCategories" WHERE "Name" = '${name}'`
-          );
-          if (category?.length) {
-            return res.status(400).json({
-              success: 0,
-              message: "Category already exists",
-            });
-          } else {
-            const slug = await generatedSlug(name, "ProductCategories");
-            const { rows: newCategory } = await pool.query(
-              `INSERT INTO "ProductCategories" ("Name", "Slug") 
-               VALUES ('${name}', '${slug}') 
-               RETURNING "Id", "Name", "Slug"`
-            );
-            return res.json({
-              success: 1,
-              message: "Category created successfully",
-              data: newCategory[0],
-            });
-          }
+          tableName = "ProductCategories";
           break;
-
         case "blog":
-          const { rows: blogCategory } = await pool.query(
-            `SELECT "Id" FROM "BlogCategories" WHERE "Name" = '${name}'`
-          );
-          if (blogCategory?.length) {
-            return res.status(400).json({
-              success: 0,
-              message: "Category already exists",
-            });
-          } else {
-            const slug = await generatedSlug(name, "BlogCategories");
-            const { rows: newCategory } = await pool.query(
-              `INSERT INTO "BlogCategories" ("Name", "Slug") 
-               VALUES ('${name}', '${slug}') 
-               RETURNING "Id", "Name", "Slug"`
-            );
-            return res.json({
-              success: 1,
-              message: "Category created successfully",
-              data: newCategory[0],
-            });
-          }
+          tableName = "BlogCategories";
           break;
-
         case "spirituality":
-          const { rows: spiritualityCategory } = await pool.query(
-            `SELECT "Id" FROM "SpiritualityCategories" WHERE "Name" = '${name}'`
-          );
-          if (spiritualityCategory?.length) {
-            return res.status(400).json({
-              success: 0,
-              message: "Category already exists",
-            });
-          } else {
-            const slug = await generatedSlug(name, "SpiritualityCategories");
-            const { rows: newCategory } = await pool.query(
-              `INSERT INTO "SpiritualityCategories" ("Name", "Slug") 
-               VALUES ('${name}', '${slug}') 
-               RETURNING "Id", "Name", "Slug"`
-            );
-            return res.json({
-              success: 1,
-              message: "Category created successfully",
-              data: newCategory[0],
-            });
-          }
+          tableName = "SpiritualityCategories";
           break;
-
         case "story":
-          const { rows: webstoryCategory } = await pool.query(
-            `SELECT "Id" FROM "WebStoryCategories" WHERE "Name" = '${name}'`
-          );
-          if (webstoryCategory?.length) {
-            return res.status(400).json({
-              success: 0,
-              message: "Category already exists",
-            });
-          } else {
-            const slug = await generatedSlug(name, "WebStoryCategories");
-            const { rows: newCategory } = await pool.query(
-              `INSERT INTO "WebStoryCategories" ("Name", "Slug") 
-               VALUES ('${name}', '${slug}') 
-               RETURNING "Id", "Name", "Slug"`
-            );
-            return res.json({
-              success: 1,
-              message: "Category created successfully",
-              data: newCategory[0],
-            });
-          }
+          tableName = "WebStoryCategories";
           break;
-
         default:
           return res.status(400).json({
             success: 0,
             message: "Invalid category type",
           });
       }
+
+      const { rows: category } = await pool.query(
+        `SELECT "Id" FROM "${tableName}" WHERE "Name" = $1`,
+        [name]
+      );
+
+      if (category?.length) {
+        return res.status(400).json({
+          success: 0,
+          message: "Category already exists",
+        });
+      }
+
+      const slug = await generatedSlug(name, tableName);
+      const { rows: newCategory } = await pool.query(
+        `INSERT INTO "${tableName}" ("Name", "Slug") 
+         VALUES ($1, $2) 
+         RETURNING "Id", "Name", "Slug"`,
+        [name, slug]
+      );
+
+      return res.json({
+        success: 1,
+        message: "Category created successfully",
+        data: newCategory[0],
+      });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
       });
     }
   }
+
   async createService(req, res) {
     try {
       let payload = req.body || {};
@@ -1911,13 +1883,6 @@ class AdminController {
       }
 
       payload.slug = await generatedSlug(payload.title, "Services");
-
-      const publishedOn =
-        new Date(payload.publishedOn) > new Date()
-          ? `'${new Date(payload.publishedOn).toISOString()}'`
-          : `'${new Date().toISOString()}'`;
-
-      console.log(payload);
 
       const { rows: service } = await pool.query(
         `INSERT INTO "Services" 
@@ -1939,28 +1904,29 @@ class AdminController {
           "Status",
           "ParentId"
         ) 
-        VALUES (
-          '${payload.title}',
-          '${payload.slug}',
-          '${payload.description}',
-          ${payload.header ? `'${payload.header}'` : "NULL"},
-          ${payload.subHeader ? `'${payload.subHeader}'` : "NULL"},
-          ${payload.image ? `'${payload.image}'` : "NULL"},
-          ${payload.imageAlt ? `'${payload.imageAlt}'` : "NULL"},
-          ${payload.link ? `'${payload.link}'` : "NULL"},
-          ${payload.linkText ? `'${payload.linkText}'` : "NULL"},
-          ${payload.focusKeyphrase ? `'${payload.focusKeyphrase}'` : "NULL"},
-          '${payload.metaTitle || payload.title}',
-          '${
-            payload.metaSiteName ||
-            "Acharya Ganesh: Solutions for Life, Love, and Career Woes"
-          }',
-          '${payload.metaDescription || ""}',
-          ${publishedOn},
-          ${payload.Status || 1},
-          ${payload.parentId ? `'${payload.parentId}'` : "NULL"}
-        )
-        RETURNING "Id"`
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        RETURNING "Id"`,
+        [
+          payload.title,
+          payload.slug,
+          payload.description,
+          payload.header || null,
+          payload.subHeader || null,
+          payload.image || null,
+          payload.imageAlt || null,
+          payload.link || null,
+          payload.linkText || null,
+          payload.focusKeyphrase || null,
+          payload.metaTitle || payload.title,
+          payload.metaSiteName ||
+            "Acharya Ganesh: Solutions for Life, Love, and Career Woes",
+          payload.metaDescription || "",
+          new Date(payload.publishedOn) > new Date()
+            ? payload.publishedOn
+            : new Date().toISOString(),
+          payload.status || 1,
+          payload.parentId || null,
+        ]
       );
 
       if (!service.length) {
@@ -1981,7 +1947,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
@@ -2000,7 +1966,8 @@ class AdminController {
       }
 
       const { rows: service } = await pool.query(
-        `SELECT * FROM "Services" WHERE "Id" = '${payload.id}'`
+        `SELECT * FROM "Services" WHERE "Id" = $1`,
+        [payload.id]
       );
 
       if (!service.length) {
@@ -2014,7 +1981,8 @@ class AdminController {
 
       if (payload?.slug && existingService.Slug !== payload?.slug) {
         const { rows: existSlug } = await pool.query(
-          `SELECT "Id" FROM "Services" WHERE "Slug" = '${payload.slug}'`
+          `SELECT "Id" FROM "Services" WHERE "Slug" = $1`,
+          [payload.slug]
         );
         if (existSlug.length) {
           return res.status(400).json({
@@ -2026,63 +1994,50 @@ class AdminController {
 
       const updateDetails = {};
 
-      if (payload.title) updateDetails["Name"] = `'${payload.title}'`;
-      if (payload.slug) updateDetails["Slug"] = `'${payload.slug}'`;
+      if (payload.title) updateDetails["Name"] = payload.title;
+      if (payload.slug) updateDetails["Slug"] = payload.slug;
       if (payload.description)
-        updateDetails["Description"] = `'${payload.description}'`;
-      if (payload.header) updateDetails["Title"] = `'${payload.header}'`;
+        updateDetails["Description"] = payload.description;
+      if (payload.header) updateDetails["Title"] = payload.header;
       if (payload.subHeader !== undefined)
-        updateDetails["SubTitle"] = payload.subHeader
-          ? `'${payload.subHeader}'`
-          : "NULL";
-      if (payload.image !== undefined)
-        updateDetails["Image"] = payload.image ? `'${payload.image}'` : "NULL";
+        updateDetails["SubTitle"] = payload.subHeader;
+      if (payload.image !== undefined) updateDetails["Image"] = payload.image;
       if (payload.imageAlt !== undefined)
-        updateDetails["ImageAlt"] = payload.imageAlt
-          ? `'${payload.imageAlt}'`
-          : "NULL";
-      if (payload.link !== undefined)
-        updateDetails["Link"] = payload.link ? `'${payload.link}'` : "NULL";
+        updateDetails["ImageAlt"] = payload.imageAlt;
+      if (payload.link !== undefined) updateDetails["Link"] = payload.link;
       if (payload.linkText !== undefined)
-        updateDetails["LinkText"] = payload.linkText
-          ? `'${payload.linkText}'`
-          : "NULL";
+        updateDetails["LinkText"] = payload.linkText;
       if (payload.focusKeyphrase !== undefined)
-        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase
-          ? `'${payload.focusKeyphrase}'`
-          : "NULL";
+        updateDetails["Focus_Keyphrase"] = payload.focusKeyphrase;
       if (payload.metaTitle !== undefined)
-        updateDetails["Meta_Title"] = `'${payload.metaTitle}'`;
+        updateDetails["Meta_Title"] = payload.metaTitle;
       if (payload.metaSiteName !== undefined)
-        updateDetails["Meta_SiteName"] = `'${payload.metaSiteName}'`;
+        updateDetails["Meta_SiteName"] = payload.metaSiteName;
       if (payload.metaDescription !== undefined)
-        updateDetails["Meta_Desc"] = `'${payload.metaDescription}'`;
+        updateDetails["Meta_Desc"] = payload.metaDescription;
       if (
         payload.publishedOn &&
         new Date(payload.publishedOn).toISOString() !==
           new Date(existingService.PublishedOn).toISOString()
       )
-        updateDetails["PublishedOn"] = `'${new Date(
+        updateDetails["PublishedOn"] = new Date(
           payload.publishedOn
-        ).toISOString()}'`;
+        ).toISOString();
       if (payload.status !== undefined)
-        updateDetails["Status"] = `${payload.status}`;
+        updateDetails["Status"] = payload.status;
       if (payload.deletedOn)
-        updateDetails["DeletedOn"] = `'${new Date(
-          payload.deletedOn
-        ).toISOString()}'`;
+        updateDetails["DeletedOn"] = new Date(payload.deletedOn).toISOString();
       if (payload.parentId !== undefined)
-        updateDetails["ParentId"] = payload.parentId
-          ? `'${payload.parentId}'`
-          : "NULL";
+        updateDetails["ParentId"] = payload.parentId;
 
       if (Object.keys(updateDetails).length > 0) {
         await pool.query(
           `UPDATE "Services" SET 
            ${Object.keys(updateDetails)
-             .map((key) => `"${key}" = ${updateDetails[key]}`)
+             .map((key, index) => `"${key}" = $${index + 1}`)
              .join(", ")}
-           WHERE "Id" = '${payload.id}'`
+            WHERE "Id" = $${Object.keys(updateDetails).length + 1}`,
+          [...Object.values(updateDetails), payload.id]
         );
       }
 
@@ -2095,7 +2050,7 @@ class AdminController {
         },
       });
     } catch (error) {
-      console.log(error);
+      console.error(error);
       return res.status(500).json({
         success: 0,
         message: error.message,
