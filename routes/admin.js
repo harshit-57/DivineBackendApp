@@ -10,133 +10,53 @@ export default class AdminRoutes {
     this.router.get("/get-admin", AdminController.getAdmin);
     this.router.get("/get-admins", AdminController.getAdmins);
     this.router.get("/get-roles", AdminController.getRoles);
-    this.router.post(
-      "/create-admin",
+    this.router.post("/create-admin", AdminController.createAdmin);
+    this.router.post("/update-admin", AdminController.updateAdmin);
 
-      AdminController.createAdmin
-    );
-    this.router.post(
-      "/update-admin",
+    this.router.post("/delete-admin", AdminController.deleteAdmin);
 
-      AdminController.updateAdmin
-    );
+    this.router.post("/create-course", AdminController.createCourse);
 
-    this.router.post(
-      "/delete-admin",
+    this.router.post("/update-course", AdminController.updateCourse);
 
-      AdminController.deleteAdmin
-    );
+    this.router.post("/create-blog", AdminController.createBlog);
 
-    this.router.post(
-      "/create-course",
-
-      AdminController.createCourse
-    );
-
-    this.router.post(
-      "/update-course",
-
-      AdminController.updateCourse
-    );
-
-    this.router.post(
-      "/create-blog",
-
-      AdminController.createBlog
-    );
-
-    this.router.post(
-      "/update-blog",
-
-      AdminController.updateBlog
-    );
+    this.router.post("/update-blog", AdminController.updateBlog);
 
     this.router.post(
       "/create-spirituality",
-
       AdminController.createSpirituality
     );
 
     this.router.post(
       "/update-spirituality",
-
       AdminController.updateSpirituality
     );
 
-    this.router.post(
-      "/create-citation",
+    this.router.post("/create-citation", AdminController.createCitation);
 
-      AdminController.createCitation
-    );
+    this.router.post("/update-citation", AdminController.updateCitation);
 
-    this.router.post(
-      "/update-citation",
+    this.router.post("/create-testimonial", AdminController.createTestimonial);
 
-      AdminController.updateCitation
-    );
+    this.router.post("/update-testimonial", AdminController.updateTestimonial);
 
-    this.router.post(
-      "/create-testimonial",
+    this.router.post("/create-web-story", AdminController.createWebStory);
 
-      AdminController.createTestimonial
-    );
+    this.router.post("/update-web-story", AdminController.updateWebStory);
 
-    this.router.post(
-      "/update-testimonial",
+    this.router.post("/create-category", AdminController.createCategory);
 
-      AdminController.updateTestimonial
-    );
+    this.router.post("/create-service", AdminController.createService);
 
-    this.router.post(
-      "/create-web-story",
+    this.router.post("/update-service", AdminController.updateService);
 
-      AdminController.createWebStory
-    );
+    this.router.post("/create-slots", AdminController.createSlots);
+    this.router.post("/update-slot", AdminController.updateSlot);
+    this.router.post("/delete-slot", AdminController.deleteSlot);
 
-    this.router.post(
-      "/update-web-story",
+    this.router.get("/get-bookings", AdminController.getBookings);
 
-      AdminController.updateWebStory
-    );
-
-    this.router.post(
-      "/create-category",
-
-      AdminController.createCategory
-    );
-
-    this.router.post(
-      "/create-service",
-
-      AdminController.createService
-    );
-
-    this.router.post(
-      "/update-service",
-
-      AdminController.updateService
-    );
-
-    this.router.post(
-      "/create-slots",
-
-      AdminController.createSlots
-    );
-    this.router.post(
-      "/update-slot",
-
-      AdminController.updateSlot
-    );
-    this.router.post(
-      "/delete-slot",
-
-      AdminController.deleteSlot
-    );
-
-    this.router.get(
-      "/get-bookings",
-
-      AdminController.getBookings
-    );
+    this.router.post("/create-slugs", AdminController.createSlugs);
   };
 }

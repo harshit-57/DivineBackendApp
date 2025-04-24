@@ -473,6 +473,10 @@ class GetDivineController {
         );
       }
 
+      if (payload?.active) {
+        filters.push(`ws."PublishedOn" <= NOW()`);
+      }
+
       if (payload?.search) {
         filters.push(`ws."Title" ILIKE '%${payload.search}%'`);
       }
