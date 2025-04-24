@@ -1496,10 +1496,14 @@ class AdminController {
           message: "Missing required fields",
         });
       }
+
+      payload.slug = await generatedSlug(payload.title, "WebStories");
+
       const { rows: webStory } = await pool.query(
         `INSERT INTO "WebStories" 
         (
           "Title", 
+          "Slug",
           "ShortDescription",
           "CoverImageUrl",
           "CoverImageAlt",
@@ -1507,10 +1511,11 @@ class AdminController {
           "PublishedOn", 
           "Status"
         ) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING "Id"`,
         [
           payload.title,
+          payload.slug,
           payload.shortDescription,
           payload.image,
           payload.imageAlt || "",
@@ -1608,6 +1613,7 @@ class AdminController {
         success: 1,
         message: "Web Story created successfully",
         data: {
+          slug: payload.slug,
           id: webStoryId,
         },
       });
@@ -1642,9 +1648,25 @@ class AdminController {
         });
       }
 
+      const existingWebStory = webStory[0];
+
+      if (payload?.slug && existingWebStory.Slug !== payload?.slug) {
+        const { rows: existSlug } = await pool.query(
+          `SELECT "Id" FROM "WebStories" WHERE "Slug" = $1`,
+          [payload.slug]
+        );
+        if (existSlug.length) {
+          return res.status(400).json({
+            success: 0,
+            message: "Slug already exists",
+          });
+        }
+      }
+
       const updateDetails = {};
 
       if (payload.title) updateDetails["Title"] = payload.title;
+      if (payload.slug) updateDetails["Slug"] = payload.slug;
       if (payload.shortDescription)
         updateDetails["ShortDescription"] = payload.shortDescription;
       if (payload.image) updateDetails["CoverImageUrl"] = payload.image;
@@ -1792,6 +1814,7 @@ class AdminController {
         success: 1,
         message: "Web Story updated successfully",
         data: {
+          slug: payload.slug || existingWebStory.Slug,
           id: payload.id,
         },
       });
@@ -2366,6 +2389,29 @@ class AdminController {
         message: "Bookings fetched successfully",
         data,
         total,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error.message });
+    }
+  }
+
+  async createSlugs(req, res) {
+    try {
+      const { rows: data } = await pool.query(
+        `SELECT "Id", "Slug", "Title" FROM "WebStories"`
+      );
+
+      data.forEach(async (item) => {
+        if (!item?.Slug) {
+          const slug = await generatedSlug(item.Title, "WebStories");
+          console.log(item?.Id, item?.Title, "slug", slug);
+
+          // await pool.query(
+          //   `UPDATE "WebStories" SET "Slug" = $1 WHERE "Id" = $2`,
+          //   [slug, item.Id]
+          // );
+        }
       });
     } catch (error) {
       console.error(error);
