@@ -368,8 +368,8 @@ class GetDivineController {
             JOIN "SpiritualityTags" tag ON sptag."SpiritualityTagId" = tag."Id" 
             WHERE sptag."SpiritualityId" = sp."Id") AS "Tags"
           FROM "Spiritualities" as sp
-          JOIN "SpiritualityMappingCategory" as spct ON sp."Id" = spct."SpiritualityId"
-          JOIN "SpiritualityCategories" as ct ON spct."SpiritualityCategoryId" = ct."Id"
+          LEFT JOIN "SpiritualityMappingCategory" as spct ON sp."Id" = spct."SpiritualityId"
+          LEFT JOIN "SpiritualityCategories" as ct ON spct."SpiritualityCategoryId" = ct."Id"
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           GROUP BY sp."Id"
           ORDER BY ${sortBy} ${sort} 
@@ -377,8 +377,8 @@ class GetDivineController {
       );
       const { rows: count } = await pool.query(
         `SELECT COUNT(*) as total FROM "Spiritualities" as sp
-          JOIN "SpiritualityMappingCategory" as spct ON sp."Id" = spct."SpiritualityId"
-          JOIN "SpiritualityCategories" as ct ON spct."SpiritualityCategoryId" = ct."Id"
+          LEFT JOIN "SpiritualityMappingCategory" as spct ON sp."Id" = spct."SpiritualityId"
+          LEFT JOIN "SpiritualityCategories" as ct ON spct."SpiritualityCategoryId" = ct."Id"
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
@@ -504,8 +504,8 @@ class GetDivineController {
             JOIN "WebStoryTags" tag ON wstag."WebStoryTagId" = tag."Id" 
             WHERE wstag."WebStoryId" = ws."Id") AS "Tags"
           FROM "WebStories" as ws
-          JOIN "WebStoryMappingCategory" as wsct ON ws."Id" = wsct."WebStoryId"
-          JOIN "WebStoryCategories" as ct ON wsct."WebStoryCategoryId" = ct."Id"
+          LEFT JOIN "WebStoryMappingCategory" as wsct ON ws."Id" = wsct."WebStoryId"
+          LEFT JOIN "WebStoryCategories" as ct ON wsct."WebStoryCategoryId" = ct."Id"
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
           GROUP BY ws."Id"
           ORDER BY ${sortBy} ${sort} 
@@ -513,8 +513,8 @@ class GetDivineController {
       );
       const { rows: total } = await pool.query(
         `SELECT COUNT(*) as total FROM "WebStories" as ws
-          JOIN "WebStoryMappingCategory" as wsct ON ws."Id" = wsct."WebStoryId"
-          JOIN "WebStoryCategories" as ct ON wsct."WebStoryCategoryId" = ct."Id"
+          LEFT JOIN "WebStoryMappingCategory" as wsct ON ws."Id" = wsct."WebStoryId"
+         LEFT JOIN "WebStoryCategories" as ct ON wsct."WebStoryCategoryId" = ct."Id"
           ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""};`
       );
 
