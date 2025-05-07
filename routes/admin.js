@@ -58,5 +58,7 @@ export default class AdminRoutes {
     this.router.get("/get-bookings", AdminController.getBookings);
 
     this.router.post("/create-slugs", AdminController.createSlugs);
+
+    this.router.post("/change-theme", AdminController.changeTheme);
   };
 }

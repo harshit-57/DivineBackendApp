@@ -2418,6 +2418,35 @@ class AdminController {
       res.status(500).json({ status: false, message: error.message });
     }
   }
+
+  async changeTheme(req, res) {
+    try {
+      const payload = req.body;
+      const { rows: data } = await pool.query(
+        `SELECT * FROM "Themes" WHERE "Id" = '${payload.id}'`
+      );
+      if (!data.length) {
+        return res.status(404).json({
+          success: 0,
+          message: "Theme not found",
+        });
+      }
+      await pool.query(`UPDATE "Themes" SET "Status" = '1' WHERE "Id" = $1`, [
+        payload.id,
+      ]);
+      await pool.query(`UPDATE "Themes" SET "Status" = '0' WHERE "Id" != $1`, [
+        payload.id,
+      ]);
+
+      return res.json({
+        success: 1,
+        message: "Theme updated successfully",
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error.message });
+    }
+  }
 }
 
 export default new AdminController();

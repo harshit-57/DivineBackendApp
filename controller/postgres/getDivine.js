@@ -1174,6 +1174,40 @@ class GetDivineController {
       res.status(500).json({ status: false, message: error?.message });
     }
   }
+
+  async getThemes(req, res) {
+    try {
+      const payload = req.query;
+      let filters = [];
+      const offset = ((payload?.page || 1) - 1) * (payload?.pageSize || 10);
+      const limit = payload?.pageSize || 10;
+      const sort = payload?.sort || "ASC";
+      const sortBy = payload?.sortBy || `th."Id"`;
+
+      if (payload?.status) {
+        filters.push(
+          `th."Status" IN (${payload.status
+            ?.split(",")
+            ?.map((item) => `'${item}'`)
+            ?.join(",")})`
+        );
+      }
+      const { rows: data } = await pool.query(
+        `SELECT th.*
+          FROM "Themes" as th
+          ${filters.length > 0 ? `WHERE ${filters.join(" AND ")}` : ""}
+          ORDER BY ${sortBy} ${sort} 
+          LIMIT ${limit} OFFSET ${offset};`
+      );
+      res.json({
+        success: 1,
+        data,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ status: false, message: error?.message });
+    }
+  }
 }
 
 export default new GetDivineController();
