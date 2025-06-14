@@ -48,5 +48,6 @@ export default class GetDivineRoutes {
     this.router.post("/completeBooking", GetDivineController.completeBooking);
 
     this.router.get("/updateImagesPath", GetDivineController.updateImagesPath);
+    this.router.get("/getThemes", GetDivineController.getThemes);
   };
 }
