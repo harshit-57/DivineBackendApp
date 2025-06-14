@@ -292,7 +292,7 @@ class GetDivineController {
             FROM "ProductMappingTag" prtag 
             JOIN "ProductTags" tag ON prtag."ProductTagId" = tag."Id" 
             WHERE prtag."ProductId" = pr."Id") AS "Tags",
-          (SELECT json_agg(prim."ImageUrl") 
+          (SELECT json_agg(json_build_object('ImageUrl', prim."ImageUrl", 'ImageAlt', prim."ImageAlt")) 
             FROM "ProductMappingImage" prim 
             WHERE prim."ProductId" = pr."Id") AS "Images"
           FROM "Products" as pr
